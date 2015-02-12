@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -5,23 +6,28 @@ module Francium.HTML
   ( html, head, title, base, link, meta, style, script, noscript, body, section, nav, article, aside, h1, h2, h3, h4, h5, h6, hgroup, header, footer, address, p, hr, pre, blockquote, ol, ul, li, dl, dt, dd, figure, figcaption, div, a, em, strong, small, s, cite, q, dfn, abbr, data_, time, code, var, samp, kbd, sub, sup, i, b, u, mark, ruby, rt, rp, bdi, bdo, span, br, wbr, ins, del, img, iframe, embed, object, param, video, audio, source, track, canvas, map, area, table, caption, colgroup, col, tbody, thead, tfoot, tr, td, th, form, fieldset, legend, label, input, button, select, datalist, optgroup, option, textarea, keygen, output, progress, meter, details, summary, command, menu, dialog
 
   , HTML
-  , (</>)
   , attrs
   , classes
   , text
+  , with
+  , into
+  , value
 
-  , EventHandlers(..)
   , onClick
   , onInput
+  , onFocus
+  , onBlur
+  , onKeyPress
   , renderTo
   , newTopLevelContainer
-  , noEvents
+  , takesFocus
   )
 where
 
 import Control.Applicative
 import Control.Lens hiding (aside, children, coerce, pre)
 import Control.Monad
+import Control.Monad.State
 import Data.Coerce (coerce)
 import Data.IORef
 import Data.Maybe
@@ -174,13 +180,23 @@ attrs f n
   | fromJSBool (isVNode n) = f (vNodeGetAttributes n) <&> vNodeSetAttributes n
   | otherwise = pure n
 
+props :: Traversal' HTML Immutable.Map
+props f n
+  | fromJSBool (isVNode n) = f (vNodeGetProperties n) <&> vNodeSetProperties n
+  | otherwise = pure n
+
 classes :: Traversal' HTML [String]
 classes = attrs . at "class" . anon "" (isEmptyStr . fromJSString) . iso (words . fromJSString) (toJSString . unwords)
   where isEmptyStr = (== ("" :: String))
 
-infixl 1 </>
-(</>) :: HTML -> [HTML] -> HTML
-n </> xs = setVNodeChildren n (unsafePerformIO (toArray (coerce xs)))
+value :: Traversal' HTML (Maybe JSString)
+value = props . at "value"
+
+with :: HTML -> State HTML () -> [HTML] -> HTML
+with el f xs = setVNodeChildren (el &~ f) (unsafePerformIO (toArray (coerce xs)))
+
+into :: HTML -> [HTML] -> HTML
+into el xs = setVNodeChildren el (unsafePerformIO (toArray (coerce xs)))
 
 instance IsString HTML where
   fromString = text . toJSString
@@ -193,15 +209,16 @@ foreign import javascript safe
   "new VNode($1.tagName, Immutable.Map($1.properties).set('attributes', $2).toJS(), $1.children)"
   vNodeSetAttributes :: HTML -> Immutable.Map -> HTML
 
-data EventHandlers = forall t out. EventHandlers
-  { ehClick :: Maybe (DOMEvent t () out)
-  , ehInput :: Maybe (DOMEvent t String out)}
+foreign import javascript safe
+  "Immutable.Map($1.properties)"
+  vNodeGetProperties :: HTML -> Immutable.Map
+
+foreign import javascript safe
+  "new VNode($1.tagName, $2.toJS(), $1.children)"
+  vNodeSetProperties :: HTML -> Immutable.Map -> HTML
 
 foreign import javascript unsafe
   "$1.preventDefault();" preventDefault :: JSRef a -> IO ()
-
-noEvents :: EventHandlers
-noEvents = EventHandlers Nothing Nothing
 
 foreign import javascript safe
   "new VNode($1.tagName, Immutable.Map($1.properties).set('ev-click', evHook($2)).toJS(), $1.children)"
@@ -212,19 +229,51 @@ foreign import javascript safe
   vnodeSetInputEv :: HTML -> JSRef a -> HTML
 
 foreign import javascript safe
+  "new VNode($1.tagName, Immutable.Map($1.properties).set('ev-focus', evHook($2)).toJS(), $1.children)"
+  vnodeSetFocusEv :: HTML -> JSRef a -> HTML
+
+foreign import javascript safe
+  "new VNode($1.tagName, Immutable.Map($1.properties).set('ev-blur', evHook($2)).toJS(), $1.children)"
+  vnodeSetBlurEv :: HTML -> JSRef a -> HTML
+
+foreign import javascript safe
+  "new VNode($1.tagName, Immutable.Map($1.properties).set('ev-keypress', evHook($2)).toJS(), $1.children)"
+  vnodeSetKeyPressEv :: HTML -> JSRef a -> HTML
+
+foreign import javascript safe
+  "new VNode($1.tagName, Immutable.Map($1.properties).set('assume-focus', FocusHook()).toJS(), $1.children)"
+  vnodeAssumeFocus :: HTML -> HTML
+
+foreign import javascript safe
   "$1.stub" getStubValue :: JSRef a -> JSString
 
-onClick :: DOMEvent t () output -> HTML -> HTML
-onClick = setDOMEvent vnodeSetClickEv $ void . preventDefault
+foreign import javascript safe
+  "$1.keyCode" getKeyCode :: JSRef a -> Int
 
-onInput :: DOMEvent t String output -> HTML -> HTML
-onInput = setDOMEvent vnodeSetInputEv $ return . fromJSString . getStubValue
+onClick :: MonadState HTML m => DOMEvent t () output -> m ()
+onClick = modify . (setDOMEvent vnodeSetClickEv $ void . preventDefault)
+
+onInput :: MonadState HTML m => DOMEvent t JSString output -> m ()
+onInput = modify . (setDOMEvent vnodeSetInputEv $ return . getStubValue)
+
+onFocus :: MonadState HTML m => DOMEvent t () output -> m ()
+onFocus = modify . (setDOMEvent vnodeSetFocusEv $ const (return ()))
+
+onBlur :: MonadState HTML m => DOMEvent t () output -> m ()
+onBlur = modify . (setDOMEvent vnodeSetBlurEv $ const (return ()))
+
+onKeyPress :: MonadState HTML m => DOMEvent t Int output -> m ()
+onKeyPress = modify . (setDOMEvent vnodeSetKeyPressEv $ return . getKeyCode)
+
+takesFocus :: MonadState HTML m => m ()
+takesFocus = modify vnodeAssumeFocus
 
 setDOMEvent :: (HTML -> JSFun (JSRef event -> IO ()) -> HTML) -> (JSRef event -> IO a) -> DOMEvent t a b -> HTML -> HTML
 setDOMEvent setter f (DOMEvent handler _) n
   | fromJSBool (isVNode n) = setter n $ unsafePerformIO $
       syncCallback1 AlwaysRetain True (f >=> handler)
   | otherwise = n
+
 
 --------------------------------------------------------------------------------
 foreign import javascript unsafe

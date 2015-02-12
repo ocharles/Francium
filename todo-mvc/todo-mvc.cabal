@@ -1,0 +1,11 @@
+name: todo-mvc
+version: 0.1
+build-type: Simple
+cabal-version: >= 1.20
+
+executable todo-mvc
+  build-depends:
+    base >= 4 && < 5,
+    francium, lens, reactive-banana, ghcjs-base
+  default-language: Haskell2010
+  main-is: Main.hs
