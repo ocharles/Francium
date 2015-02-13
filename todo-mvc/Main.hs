@@ -24,14 +24,23 @@ main =
                   accumE [] (append <$> eAddItem)
                 openItemCount =
                   fmap (length .
-                        filter (== Incomplete))
-                       (switchB (pure [])
-                                (fmap (sequenceA . fmap tdiStatus) eItemsChanged))
+                        filter (== Incomplete) .
+                        map snd)
+                       items
+                items =
+                  zipWith (,) <$>
+                  (switchB (pure [])
+                           (fmap (sequenceA . fmap tdiView) eItemsChanged)) <*>
+                  (switchB (pure [])
+                           (fmap (sequenceA . fmap tdiStatus) eItemsChanged))
             stateFilter <- mkStateFilter
             return (appView <$>
                     (TodoApp <$> niaView itemAdder <*>
-                     switchB (pure [])
-                             (fmap (sequenceA . fmap tdiView) eItemsChanged) <*>
+                     ((\f ->
+                         map fst .
+                         (filter (f . snd))) <$>
+                      sfFilter stateFilter <*>
+                      items) <*>
                      openItemCount <*>
                      sfView stateFilter)))
   where append x xs =

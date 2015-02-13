@@ -4,6 +4,7 @@
 
 module StateFilter where
 
+import Data.Function (on)
 import Data.Traversable (for)
 import Francium
 import Francium.HTML hiding (map)
@@ -14,13 +15,13 @@ import Reactive.Banana
 import GHCJS.Foreign
 import GHCJS.Types
 
-import ToDoItem (ToDoItem)
+import ToDoItem (ToDoItem(..), Status(..))
 
 data Filter = All | Active | Completed
   deriving (Bounded, Enum, Eq, Ord, Show)
 
 data StateFilter t =
-  StateFilter {sfFilter :: forall b e. Behavior t ([ToDoItem b e] -> [ToDoItem b e])
+  StateFilter {sfFilter :: Behavior t (Status -> Bool)
               ,sfView :: Behavior t HTML}
 
 mkStateFilter :: Frameworks t => Moment t (StateFilter t)
@@ -55,7 +56,14 @@ mkStateFilter =
       let currentState =
             stepper initialState (unions (map domEvent stateChanges))
       return StateFilter {sfView = into container <$> sequenceA views
-                         ,sfFilter = pure id}
+                         ,sfFilter =
+                            (\filter_ ->
+                               case filter_ of
+                                 All ->
+                                   const True
+                                 Active -> (== Incomplete)
+                                 Completed -> (== Complete)) <$>
+                            currentState}
   where container =
           with ul
                (do attrs .
