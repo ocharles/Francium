@@ -18,6 +18,8 @@ module Francium.HTML
   , onFocus
   , onBlur
   , onKeyPress
+  , onMouseOver
+  , onMouseOut
   , renderTo
   , newTopLevelContainer
   , takesFocus
@@ -225,6 +227,14 @@ foreign import javascript safe
   vnodeSetClickEv :: HTML -> JSRef a -> HTML
 
 foreign import javascript safe
+  "new VNode($1.tagName, Immutable.Map($1.properties).set('ev-mouseover', evHook($2)).toJS(), $1.children)"
+  vnodeSetMouseOverEv :: HTML -> JSRef a -> HTML
+
+foreign import javascript safe
+  "new VNode($1.tagName, Immutable.Map($1.properties).set('ev-mouseout', evHook($2)).toJS(), $1.children)"
+  vnodeSetMouseOutEv :: HTML -> JSRef a -> HTML
+
+foreign import javascript safe
   "new VNode($1.tagName, Immutable.Map($1.properties).set('name', 'stub').set('ev-input', evHook(changeEvent($2))).toJS(), $1.children)"
   vnodeSetInputEv :: HTML -> JSRef a -> HTML
 
@@ -264,6 +274,12 @@ onBlur = modify . (setDOMEvent vnodeSetBlurEv $ const (return ()))
 
 onKeyPress :: MonadState HTML m => DOMEvent t Int output -> m ()
 onKeyPress = modify . (setDOMEvent vnodeSetKeyPressEv $ return . getKeyCode)
+
+onMouseOver :: MonadState HTML m => DOMEvent t () output -> m ()
+onMouseOver = modify . (setDOMEvent vnodeSetMouseOverEv $ const (return ()))
+
+onMouseOut :: MonadState HTML m => DOMEvent t () output -> m ()
+onMouseOut = modify . (setDOMEvent vnodeSetMouseOutEv $ const (return ()))
 
 takesFocus :: MonadState HTML m => m ()
 takesFocus = modify vnodeAssumeFocus

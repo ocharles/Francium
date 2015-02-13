@@ -11,6 +11,7 @@ import GHCJS.Types
 
 import NewItemAdder
 import ToDoItem
+import StateFilter
 
 main :: IO ()
 main =
@@ -26,11 +27,13 @@ main =
                         filter (== Incomplete))
                        (switchB (pure [])
                                 (fmap (sequenceA . fmap tdiStatus) eItemsChanged))
+            stateFilter <- mkStateFilter
             return (appView <$>
                     (TodoApp <$> niaView itemAdder <*>
                      switchB (pure [])
                              (fmap (sequenceA . fmap tdiView) eItemsChanged) <*>
-                     openItemCount)))
+                     openItemCount <*>
+                     sfView stateFilter)))
   where append x xs =
           xs ++
           [x]
@@ -88,8 +91,8 @@ completeToDo =
                          "-webkit-font-smoothing: antialiased; -webkit-appearance: none; vertical-align: baseline; font-size: 30px; border-width: 0px; padding: 0px; margin: auto 0px 11px; outline-style: none; -webkit-transition: color 0.2s ease-out initial; transition: color 0.2s ease-out initial; color: rgb(204, 154, 154); height: 40px; width: 40px; bottom: 0px; right: 10px; top: 0px; position: absolute; display: none; background-image: none;")
                    []]]
 
-toDoSummary :: Int -> HTML
-toDoSummary n =
+toDoSummary :: Int -> HTML -> HTML
+toDoSummary n stateFilter =
   with footer
        (do attrs .
              at "style" ?=
@@ -106,46 +109,7 @@ toDoSummary n =
              ," "
              ,if n > 1 then "items" else "item"
              ," left"]
-       ,with ul
-             (do attrs .
-                   at "style" ?=
-                   "left: 0px; right: 0px; position: absolute; list-style-type: none; padding: 0px; margin: 0px;")
-             [with li
-                   (do attrs .
-                         at "style" ?=
-                         "display: inline;")
-                   [with a
-                         (do attrs .
-                               at "style" ?=
-                               "border-radius: 3px; border: 1px solid rgba(175, 47, 47, 0.2); text-decoration-line: none; padding: 3px 7px; margin: 3px;"
-                             attrs .
-                               at "href" ?=
-                               "#/")
-                         ["All"]]
-             ,with li
-                   (do attrs .
-                         at "style" ?=
-                         "display: inline;")
-                   [with a
-                         (do attrs .
-                               at "style" ?=
-                               "border-radius: 3px; border: 1px solid transparent; text-decoration-line: none; padding: 3px 7px; margin: 3px;"
-                             attrs .
-                               at "href" ?=
-                               "#/active")
-                         ["Active"]]
-             ,with li
-                   (do attrs .
-                         at "style" ?=
-                         "display: inline;")
-                   [with a
-                         (do attrs .
-                               at "style" ?=
-                               "border-radius: 3px; border: 1px solid transparent; text-decoration-line: none; padding: 3px 7px; margin: 3px;"
-                             attrs .
-                               at "href" ?=
-                               "#/completed")
-                         ["Completed"]]]
+       ,stateFilter
        ,with button
              (do attrs .
                    at "style" ?=
@@ -206,10 +170,11 @@ pageFooter =
 data TodoApp =
   TodoApp {taAddANewItem :: HTML
           ,taItems :: [HTML]
-          ,taOpenItemCount :: Int}
+          ,taOpenItemCount :: Int
+          ,taStateFilter :: HTML}
 
 appView :: TodoApp -> HTML
-appView (TodoApp addANewItem items openItemCount) =
+appView (TodoApp addANewItem items openItemCount stateFilter) =
   into mainContainer
        [with section
              (attrs .
@@ -237,7 +202,7 @@ appView (TodoApp addANewItem items openItemCount) =
                                "toggle-all")
                          ["Mark all as complete"]
                    ,into toDoContainer (map (into itemContainer . pure) items)]
-             ,toDoSummary openItemCount]
+             ,toDoSummary openItemCount stateFilter]
        ,pageFooter
        ,with div
              (do attrs .
