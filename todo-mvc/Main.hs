@@ -21,18 +21,28 @@ main =
                           FrameworksMoment (trim =<< mkToDoItem x)) <$>
                        niaComplete itemAdder)
             let eItemsChanged =
-                  accumE [] (append <$> eAddItem)
+                  accumE []
+                         ((append <$> eAddItem) `union`
+                          destroy)
                 openItemCount =
                   fmap (length .
                         filter (== Incomplete) .
                         map snd)
                        items
                 items =
-                  zipWith (,) <$>
-                  (switchB (pure [])
-                           (fmap (sequenceA . fmap tdiView) eItemsChanged)) <*>
-                  (switchB (pure [])
-                           (fmap (sequenceA . fmap tdiStatus) eItemsChanged))
+                  let switchField f =
+                        switchB (pure [])
+                                (fmap (sequenceA . fmap f) eItemsChanged)
+                  in zipWith (,) <$>
+                     switchField tdiView <*>
+                     switchField tdiStatus
+                destroy =
+                  switchE (fmap (\events ->
+                                   anyMoment (fmap (unions .
+                                                    (zipWith (\i -> (deleteElem i <$))
+                                                             [0 ..]))
+                                                   (mapM now events)))
+                                (fmap (map tdiDestroy) eItemsChanged))
             stateFilter <- mkStateFilter
             return (appView <$>
                     (TodoApp <$> niaView itemAdder <*>
@@ -46,6 +56,14 @@ main =
   where append x xs =
           xs ++
           [x]
+
+deleteElem :: Int -> [a] -> [a]
+deleteElem i [] = []
+deleteElem i (x:xs)
+  | i < 0 = xs
+  | i > length xs = xs
+  | i == 0 = xs
+  | otherwise = x : deleteElem (i - 1) xs
 
 mainContainer :: HTML
 mainContainer =

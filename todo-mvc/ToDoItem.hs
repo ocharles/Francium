@@ -24,14 +24,15 @@ negateStatus =
     Incomplete -> Complete
     Complete -> Incomplete
 
-data ToDoItem behavior (event :: * -> *) =
+data ToDoItem behavior event =
   ToDoItem {tdiView :: behavior HTML
-           ,tdiStatus :: behavior Status}
+           ,tdiStatus :: behavior Status
+           ,tdiDestroy :: event () }
 
 instance Trim (ToDoItem (Behavior t) (Event t)) where
   type Trimmed (ToDoItem (Behavior t) (Event t)) = ToDoItem (AnyMoment Behavior) (AnyMoment Event)
   type Time (ToDoItem (Behavior t) (Event t)) = t
-  trim (ToDoItem a b) = ToDoItem <$> trimB a <*> trimB b
+  trim (ToDoItem a b c) = ToDoItem <$> trimB a <*> trimB b <*> trimE c
 
 data State = Viewing | Editing deriving (Eq)
 
@@ -42,6 +43,7 @@ mkToDoItem initialContent =
      blur <- newDOMEvent
      editInput <- newDOMEvent
      statusCheckboxClicked <- newDOMEvent
+     destroy <- newDOMEvent
      let switchToEditing =
            whenE ((Viewing ==) <$> state)
                  (domEvent click)
@@ -51,13 +53,15 @@ mkToDoItem initialContent =
                     switchToEditing) `union`
                    (const Viewing <$
                     domEvent blur))
-         status = accumB Incomplete (negateStatus <$ domEvent statusCheckboxClicked)
-     pure (ToDoItem (itemRenderer click editInput blur statusCheckboxClicked <$>
+         status =
+           accumB Incomplete (negateStatus <$ domEvent statusCheckboxClicked)
+     pure (ToDoItem (itemRenderer click editInput blur statusCheckboxClicked destroy <$>
                      state <*>
                      stepper initialContent (domEvent editInput) <*>
                      status)
-                    status)
-  where itemRenderer labelClick editInput blur statusCheckboxClicked state inputValue status =
+                    status
+                    (domEvent destroy))
+  where itemRenderer labelClick editInput blur statusCheckboxClicked destroy state inputValue status =
           let items =
                 case state of
                   Viewing ->
@@ -67,7 +71,10 @@ mkToDoItem initialContent =
                                 Complete -> completeLabelStyle
                               onClick labelClick)
                           [text inputValue]
-                    ,with button buttonStyle []]
+                    ,with button
+                          (do buttonStyle
+                              onClick destroy)
+                          ["\215"]]
                   Editing ->
                     [with input
                           (do inputStyle
@@ -104,4 +111,4 @@ mkToDoItem initialContent =
         buttonStyle =
           attrs .
           at "style" ?=
-          "-webkit-font-smoothing: antialiased; -webkit-appearance: none; vertical-align: baseline; font-size: 30px; border-width: 0px; padding: 0px; margin: auto 0px 11px; outline-style: none; -webkit-transition: color 0.2s ease-out initial; transition: color 0.2s ease-out initial; color: rgb(204, 154, 154); height: 40px; width: 40px; bottom: 0px; right: 10px; top: 0px; position: absolute; display: none; background-image: none;"
+          "-webkit-font-smoothing: antialiased; vertical-align: baseline; font-size: 30px; border-width: 0px; padding: 0px; margin: auto 0px 11px; outline-style: none; -webkit-transition: color 0.2s ease-out initial; transition: color 0.2s ease-out initial; color: rgb(204, 154, 154); height: 40px; width: 40px; bottom: 0px; right: 10px; top: 0px; position: absolute; display: block; background-image: none; background-color: inherit;"
