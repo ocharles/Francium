@@ -6,12 +6,14 @@ module Francium.HTML
   ( html, head, title, base, link, meta, style, script, noscript, body, section, nav, article, aside, h1, h2, h3, h4, h5, h6, hgroup, header, footer, address, p, hr, pre, blockquote, ol, ul, li, dl, dt, dd, figure, figcaption, div, a, em, strong, small, s, cite, q, dfn, abbr, data_, time, code, var, samp, kbd, sub, sup, i, b, u, mark, ruby, rt, rp, bdi, bdo, span, br, wbr, ins, del, img, iframe, embed, object, param, video, audio, source, track, canvas, map, area, table, caption, colgroup, col, tbody, thead, tfoot, tr, td, th, form, fieldset, legend, label, input, button, select, datalist, optgroup, option, textarea, keygen, output, progress, meter, details, summary, command, menu, dialog
 
   , HTML
+  , emptyElement
   , attrs
   , classes
   , text
   , with
   , into
   , value
+  , namespace
 
   , onClick
   , onInput
@@ -175,7 +177,8 @@ foreign import javascript safe
   "$r = $1 && $1.type == 'VirtualNode';" isVNode :: HTML -> JSBool
 
 foreign import javascript safe
-  "if ($1.type == 'VirtualNode') { $r = new VNode($1.tagName, $1.properties, $2); } else { $r = $1; }" setVNodeChildren :: HTML -> JSArray a -> HTML
+  "if ($1.type == 'VirtualNode') { $r = new VNode($1.tagName, $1.properties, $2, $1.key, $1.namespace); } else { $r = $1; }"
+  setVNodeChildren :: HTML -> JSArray a -> HTML
 
 attrs :: Traversal' HTML Immutable.Map
 attrs f n
@@ -194,6 +197,19 @@ classes = attrs . at "class" . anon "" (isEmptyStr . fromJSString) . iso (words 
 value :: Traversal' HTML (Maybe JSString)
 value = props . at "value"
 
+foreign import javascript safe
+  "$1.namespace"
+  vNodeGetNamespace :: HTML -> JSString
+
+foreign import javascript safe
+  "new VNode($1.tagName, $1.properties, $1.children, $1.key, $2)"
+  vNodeSetNamespace :: HTML -> JSString -> HTML
+
+namespace :: Traversal' HTML JSString
+namespace f n
+  | fromJSBool (isVNode n) = f (vNodeGetNamespace n) <&> vNodeSetNamespace n
+  | otherwise = pure n
+
 with :: HTML -> State HTML () -> [HTML] -> HTML
 with el f xs = setVNodeChildren (el &~ f) (unsafePerformIO (toArray (coerce xs)))
 
@@ -208,7 +224,7 @@ foreign import javascript safe
   vNodeGetAttributes :: HTML -> Immutable.Map
 
 foreign import javascript safe
-  "new VNode($1.tagName, Immutable.Map($1.properties).set('attributes', $2).toJS(), $1.children)"
+  "new VNode($1.tagName, Immutable.Map($1.properties).set('attributes', $2).toJS(), $1.children, $1.key, $1.namespace)"
   vNodeSetAttributes :: HTML -> Immutable.Map -> HTML
 
 foreign import javascript safe
@@ -216,42 +232,42 @@ foreign import javascript safe
   vNodeGetProperties :: HTML -> Immutable.Map
 
 foreign import javascript safe
-  "new VNode($1.tagName, $2.toJS(), $1.children)"
+  "new VNode($1.tagName, $2.toJS(), $1.children, $1.key, $1.namespace)"
   vNodeSetProperties :: HTML -> Immutable.Map -> HTML
 
 foreign import javascript unsafe
   "$1.preventDefault();" preventDefault :: JSRef a -> IO ()
 
 foreign import javascript safe
-  "new VNode($1.tagName, Immutable.Map($1.properties).set('ev-click', evHook($2)).toJS(), $1.children)"
+  "new VNode($1.tagName, Immutable.Map($1.properties).set('ev-click', evHook($2)).toJS(), $1.children, $1.key, $1.namespace)"
   vnodeSetClickEv :: HTML -> JSRef a -> HTML
 
 foreign import javascript safe
-  "new VNode($1.tagName, Immutable.Map($1.properties).set('ev-mouseover', evHook($2)).toJS(), $1.children)"
+  "new VNode($1.tagName, Immutable.Map($1.properties).set('ev-mouseover', evHook($2)).toJS(), $1.children, $1.key, $1.namespace)"
   vnodeSetMouseOverEv :: HTML -> JSRef a -> HTML
 
 foreign import javascript safe
-  "new VNode($1.tagName, Immutable.Map($1.properties).set('ev-mouseout', evHook($2)).toJS(), $1.children)"
+  "new VNode($1.tagName, Immutable.Map($1.properties).set('ev-mouseout', evHook($2)).toJS(), $1.children, $1.key, $1.namespace)"
   vnodeSetMouseOutEv :: HTML -> JSRef a -> HTML
 
 foreign import javascript safe
-  "new VNode($1.tagName, Immutable.Map($1.properties).set('name', 'stub').set('ev-input', evHook(changeEvent($2))).toJS(), $1.children)"
+  "new VNode($1.tagName, Immutable.Map($1.properties).set('name', 'stub').set('ev-input', evHook(changeEvent($2))).toJS(), $1.children, $1.key, $1.namespace)"
   vnodeSetInputEv :: HTML -> JSRef a -> HTML
 
 foreign import javascript safe
-  "new VNode($1.tagName, Immutable.Map($1.properties).set('ev-focus', evHook($2)).toJS(), $1.children)"
+  "new VNode($1.tagName, Immutable.Map($1.properties).set('ev-focus', evHook($2)).toJS(), $1.children, $1.key, $1.namespace)"
   vnodeSetFocusEv :: HTML -> JSRef a -> HTML
 
 foreign import javascript safe
-  "new VNode($1.tagName, Immutable.Map($1.properties).set('ev-blur', evHook($2)).toJS(), $1.children)"
+  "new VNode($1.tagName, Immutable.Map($1.properties).set('ev-blur', evHook($2)).toJS(), $1.children, $1.key, $1.namespace)"
   vnodeSetBlurEv :: HTML -> JSRef a -> HTML
 
 foreign import javascript safe
-  "new VNode($1.tagName, Immutable.Map($1.properties).set('ev-keypress', evHook($2)).toJS(), $1.children)"
+  "new VNode($1.tagName, Immutable.Map($1.properties).set('ev-keypress', evHook($2)).toJS(), $1.children, $1.key, $1.namespace)"
   vnodeSetKeyPressEv :: HTML -> JSRef a -> HTML
 
 foreign import javascript safe
-  "new VNode($1.tagName, Immutable.Map($1.properties).set('assume-focus', FocusHook()).toJS(), $1.children)"
+  "new VNode($1.tagName, Immutable.Map($1.properties).set('assume-focus', FocusHook()).toJS(), $1.children, $1.key, $1.namespace)"
   vnodeAssumeFocus :: HTML -> HTML
 
 foreign import javascript safe
