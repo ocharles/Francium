@@ -19,14 +19,14 @@ main =
   react (do itemAdder <- construct NewItemAdder
             stateFilter <- construct StateFilter
             eAddItem <-
-              execute ((\x ->
-                          FrameworksMoment
-                            (trimComponent =<<
-                             construct (ToDoItem x))) <$>
-                       (addItem (outputs itemAdder)))
+              execute (fmap (\x ->
+                               FrameworksMoment
+                                 (trimComponent =<<
+                                  construct (ToDoItem x)))
+                            (addItem (outputs itemAdder)))
             let eItemsChanged =
                   accumE []
-                         ((append <$> eAddItem) `union`
+                         ((fmap append eAddItem) `union`
                           destroy)
                 openItemCount =
                   fmap (length .
@@ -53,9 +53,9 @@ main =
                             (filter (f . snd)))
                          (stateFilterF (outputs stateFilter))
                          items
-            return (appView <$>
-                    (TodoApp <$> render itemAdder <*> visibleItems <*>
-                     openItemCount <*> render stateFilter)))
+            return (fmap appView
+                         (TodoApp <$> render itemAdder <*> visibleItems <*>
+                          openItemCount <*> render stateFilter)))
   where append x xs =
           xs ++
           [x]

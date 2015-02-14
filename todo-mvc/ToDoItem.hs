@@ -8,18 +8,21 @@
 
 module ToDoItem where
 
-import Francium
-import GHC.Generics
-import Francium.HTML
-import qualified Francium.HTML as HTML
+import Data.Bool (bool)
 import Control.Lens ((?=), (.=), at)
-import Prelude hiding (div, map, span)
-import Reactive.Banana
-import GHCJS.Foreign
-import GHCJS.Types
+import Control.Monad.Trans.State.Strict (execState)
+import Francium
 import Francium.Component
-import PureComponent
+import Francium.HTML
+import GHC.Generics
+import GHCJS.Types
 import HoverObserver
+import KeyPressObserver
+import Prelude hiding (div, map, span)
+import PureComponent
+import Reactive.Banana
+import TextInput
+import TrackFocus
 
 data Status = Complete | Incomplete
   deriving (Bounded, Enum, Eq, Ord)
@@ -35,6 +38,7 @@ instance TrimOutput ToDoItem
 
 data State = Viewing | Editing deriving (Eq)
 
+--------------------------------------------------------------------------------
 data ToDoItem = ToDoItem { initialContent :: JSString }
 
 instance Component ToDoItem where
@@ -44,11 +48,13 @@ instance Component ToDoItem where
   construct toDoItem =
     do container <-
          construct (HoverObserver (PureComponent div))
+       textInput <-
+         do never' <- trimE never
+            construct (TrackFocus (KeyPressObserver (TextInput (initialContent toDoItem) never')))
+       destroyButton <-
+         construct (Button ["\215"])
+       statusCheckbox <- construct ToDoCheckbox
        click <- newDOMEvent
-       blur <- newDOMEvent
-       editInput <- newDOMEvent
-       statusCheckboxClicked <- newDOMEvent
-       destroy <- newDOMEvent
        let switchToEditing =
              whenE ((Viewing ==) <$> state)
                    (domEvent click)
@@ -57,25 +63,26 @@ instance Component ToDoItem where
                     ((const Editing <$
                       switchToEditing) `union`
                      (const Viewing <$
-                      domEvent blur))
+                      lostFocus (outputs textInput)))
            status =
-             accumB Incomplete (negateStatus <$ domEvent statusCheckboxClicked)
+             fmap (bool Incomplete Complete)
+                  (checked (outputs statusCheckbox))
            showDestroy =
              liftA2 (&&)
                     (fmap (Viewing ==) state)
                     (isHovered (outputs container))
-       return (Instantiation {render =
-                                itemRenderer click editInput blur statusCheckboxClicked destroy <$>
-                                render container <*>
-                                showDestroy <*>
-                                state <*>
-                                stepper (initialContent toDoItem)
-                                        (domEvent editInput) <*>
-                                status
+           itemValue =
+             TextInput.value (KeyPressObserver.passThrough (TrackFocus.passThrough (outputs textInput)))
+       return (Instantiation {render = itemRenderer click <$>
+                                       render destroyButton <*>
+                                       render statusCheckbox <*>
+                                       render container <*> showDestroy <*>
+                                       state <*> render textInput <*> itemValue <*>
+                                       status
                              ,outputs =
                                 ToDoItemOutput status
-                                               (domEvent destroy)})
-    where itemRenderer labelClick editInput blur statusCheckboxClicked destroy container showDestroy state inputValue status =
+                                               (clicked (outputs destroyButton))})
+    where itemRenderer labelClick destroy statusCheckbox container showDestroy state textInput inputValue status =
             let svgCheckbox =
                   case state of
                     Viewing ->
@@ -106,34 +113,22 @@ instance Component ToDoItem where
                 items =
                   case state of
                     Viewing ->
-                      with label
-                           (do case status of
-                                 Incomplete -> labelStyle
-                                 Complete -> completeLabelStyle
-                               onClick labelClick)
-                           [text inputValue] :
-                      if showDestroy
-                         then [with button
-                                    (do buttonStyle
-                                        onClick destroy)
-                                    ["\215"]]
-                         else []
+                      [with label
+                            (do case status of
+                                  Incomplete -> labelStyle
+                                  Complete -> completeLabelStyle
+                                onClick labelClick)
+                            [text inputValue]
+                      ,execState (if showDestroy
+                                     then buttonStyle
+                                     else hiddenButtonStyle)
+                                 destroy]
                     Editing ->
-                      [with input
-                            (do inputStyle
-                                value ?= inputValue
-                                onBlur blur
-                                onInput editInput
-                                takesFocus)
-                            []]
+                      [execState (do inputStyle
+                                     takesFocus)
+                                 textInput]
             in into container
-                    (with input
-                          (do checkboxStyle
-                              onClick statusCheckboxClicked
-                              attrs .
-                                at "type" ?=
-                                "checkbox")
-                          svgCheckbox :
+                    (execState checkboxStyle statusCheckbox :
                      items)
           inputStyle =
             attrs .
@@ -155,6 +150,10 @@ instance Component ToDoItem where
             attrs .
             at "style" ?=
             "-webkit-font-smoothing: antialiased; vertical-align: baseline; font-size: 30px; border-width: 0px; padding: 0px; margin: auto 0px 11px; outline-style: none; -webkit-transition: color 0.2s ease-out initial; transition: color 0.2s ease-out initial; color: rgb(204, 154, 154); height: 40px; width: 40px; bottom: 0px; right: 10px; top: 0px; position: absolute; display: block; background-image: none; background-color: inherit;"
+          hiddenButtonStyle =
+            attrs .
+            at "style" ?=
+            "-webkit-font-smoothing: antialiased; vertical-align: baseline; font-size: 30px; border-width: 0px; padding: 0px; margin: auto 0px 11px; outline-style: none; -webkit-transition: color 0.2s ease-out initial; transition: color 0.2s ease-out initial; color: rgb(204, 154, 154); height: 40px; width: 40px; bottom: 0px; right: 10px; top: 0px; position: absolute; display: block; background-image: none; background-color: inherit; display: none;"
           checkCircle =
             with circle
                  (do attrs .
@@ -183,3 +182,37 @@ instance Component ToDoItem where
           svg = svgElement "svg"
           circle = svgElement "circle"
           path = svgElement "path"
+
+--------------------------------------------------------------------------------
+data ToDoCheckbox = ToDoCheckbox
+
+instance Component ToDoCheckbox where
+  data Output behavior event
+       ToDoCheckbox = ToDoCheckboxOutput{checked :: behavior Bool}
+  construct ToDoCheckbox =
+    do click <- newDOMEvent
+       let isChecked =
+             accumB False (not <$ domEvent click)
+       return Instantiation {outputs =
+                               ToDoCheckboxOutput isChecked
+                            ,render =
+                               fmap (\b ->
+                                       with input
+                                            (do attrs .
+                                                  at "checked" .=
+                                                  if b
+                                                     then Just "checked"
+                                                     else Nothing
+                                                onClick click)
+                                            [])
+                                    isChecked}
+
+--------------------------------------------------------------------------------
+data Button = Button [HTML]
+
+instance Component Button where
+  data Output behavior event Button = ButtonOutput { clicked :: event () }
+  construct (Button content) = do
+    click <- newDOMEvent
+    return Instantiation { outputs = ButtonOutput (domEvent click)
+                         , render = pure (with button (onClick click) content)}
