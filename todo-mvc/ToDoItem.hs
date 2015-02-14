@@ -18,6 +18,8 @@ import Reactive.Banana
 import GHCJS.Foreign
 import GHCJS.Types
 import Francium.Component
+import PureComponent
+import HoverObserver
 
 data Status = Complete | Incomplete
   deriving (Bounded, Enum, Eq, Ord)
@@ -40,7 +42,9 @@ instance Component ToDoItem where
                                                      behavior Status,
                                                      destroy :: event ()}
   construct toDoItem =
-    do click <- newDOMEvent
+    do container <-
+         construct (HoverObserver (PureComponent div))
+       click <- newDOMEvent
        blur <- newDOMEvent
        editInput <- newDOMEvent
        statusCheckboxClicked <- newDOMEvent
@@ -56,8 +60,14 @@ instance Component ToDoItem where
                       domEvent blur))
            status =
              accumB Incomplete (negateStatus <$ domEvent statusCheckboxClicked)
+           showDestroy =
+             liftA2 (&&)
+                    (fmap (Viewing ==) state)
+                    (isHovered (outputs container))
        return (Instantiation {render =
                                 itemRenderer click editInput blur statusCheckboxClicked destroy <$>
+                                render container <*>
+                                showDestroy <*>
                                 state <*>
                                 stepper (initialContent toDoItem)
                                         (domEvent editInput) <*>
@@ -65,7 +75,7 @@ instance Component ToDoItem where
                              ,outputs =
                                 ToDoItemOutput status
                                                (domEvent destroy)})
-    where itemRenderer labelClick editInput blur statusCheckboxClicked destroy state inputValue status =
+    where itemRenderer labelClick editInput blur statusCheckboxClicked destroy container showDestroy state inputValue status =
             let svgCheckbox =
                   case state of
                     Viewing ->
@@ -96,16 +106,18 @@ instance Component ToDoItem where
                 items =
                   case state of
                     Viewing ->
-                      [with label
-                            (do case status of
-                                  Incomplete -> labelStyle
-                                  Complete -> completeLabelStyle
-                                onClick labelClick)
-                            [text inputValue]
-                      ,with button
-                            (do buttonStyle
-                                onClick destroy)
-                            ["\215"]]
+                      with label
+                           (do case status of
+                                 Incomplete -> labelStyle
+                                 Complete -> completeLabelStyle
+                               onClick labelClick)
+                           [text inputValue] :
+                      if showDestroy
+                         then [with button
+                                    (do buttonStyle
+                                        onClick destroy)
+                                    ["\215"]]
+                         else []
                     Editing ->
                       [with input
                             (do inputStyle
@@ -114,7 +126,7 @@ instance Component ToDoItem where
                                 onInput editInput
                                 takesFocus)
                             []]
-            in into div
+            in into container
                     (with input
                           (do checkboxStyle
                               onClick statusCheckboxClicked
