@@ -116,7 +116,7 @@ toDoSummary n stateFilter =
                          "font-weight: 300;")
                    [text (show n)]
              ," "
-             ,if n > 1 then "items" else "item"
+             ,if n == 1 then "item" else "items"
              ," left"]
        ,stateFilter
        ,with button
