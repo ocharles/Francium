@@ -18,6 +18,12 @@ import GHCJS.Types
 data Status = Complete | Incomplete
   deriving (Bounded, Enum, Eq, Ord)
 
+negateStatus :: Status -> Status
+negateStatus =
+  \case
+    Incomplete -> Complete
+    Complete -> Incomplete
+
 data ToDoItem behavior (event :: * -> *) =
   ToDoItem {tdiView :: behavior HTML
            ,tdiStatus :: behavior Status}
@@ -35,6 +41,7 @@ mkToDoItem initialContent =
   do click <- newDOMEvent
      blur <- newDOMEvent
      editInput <- newDOMEvent
+     statusCheckboxClicked <- newDOMEvent
      let switchToEditing =
            whenE ((Viewing ==) <$> state)
                  (domEvent click)
@@ -44,16 +51,20 @@ mkToDoItem initialContent =
                     switchToEditing) `union`
                    (const Viewing <$
                     domEvent blur))
-     pure (ToDoItem (itemRenderer click editInput blur <$>
+         status = accumB Incomplete (negateStatus <$ domEvent statusCheckboxClicked)
+     pure (ToDoItem (itemRenderer click editInput blur statusCheckboxClicked <$>
                      state <*>
-                     stepper initialContent (domEvent editInput))
-                    (pure Incomplete))
-  where itemRenderer labelClick editInput blur state inputValue =
+                     stepper initialContent (domEvent editInput) <*>
+                     status)
+                    status)
+  where itemRenderer labelClick editInput blur statusCheckboxClicked state inputValue status =
           let items =
                 case state of
                   Viewing ->
                     [with label
-                          (do labelStyle
+                          (do case status of
+                                Incomplete -> labelStyle
+                                Complete -> completeLabelStyle
                               onClick labelClick)
                           [text inputValue]
                     ,with button buttonStyle []]
@@ -68,6 +79,7 @@ mkToDoItem initialContent =
           in into div
                   (with input
                         (do checkboxStyle
+                            onClick statusCheckboxClicked
                             attrs .
                               at "type" ?=
                               "checkbox")
@@ -80,11 +92,15 @@ mkToDoItem initialContent =
         checkboxStyle =
           attrs .
           at "style" ?=
-          "outline-style: none; -webkit-appearance: none; border-margin: auto 0px; bottom: 0px; top: 0px; position: absolute; height: 40px; width: 40px; text-align: center;"
+          "border-margin: auto 0px; bottom: 0px; top: 0px; position: absolute; height: 40px; width: 40px; text-align: center;"
         labelStyle =
           attrs .
           at "style" ?=
-          "-webkit-transition: color 0.4s initial initial; transition: color 0.4s initial initial; line-height: 1.2; display: block; margin-left: 45px; padding: 15px 60px 15px 15px; word-break: break-word; white-space: pre;"
+          "-webkit-transition: color 0.4s; transition: color 0.4s; line-height: 1.2; display: block; margin-left: 45px; padding: 15px 60px 15px 15px; word-break: break-word; white-space: pre;"
+        completeLabelStyle =
+          attrs .
+          at "style" ?=
+          "-webkit-transition: color 0.4s; transition: color 0.4s; line-height: 1.2; display: block; margin-left: 45px; padding: 15px 60px 15px 15px; word-break: break-word; white-space: pre; color: #d9d9d9; text-decoration: line-through;"
         buttonStyle =
           attrs .
           at "style" ?=
