@@ -46,7 +46,6 @@ module Francium
   , AnyMoment
   , anyMoment
   , now
-  , Trim(..)
   , switchB
   , switchE
 
@@ -74,22 +73,6 @@ import Reactive.Banana
 import Reactive.Banana.Frameworks
 import qualified Francium.HTML as HTML
 import Control.Lens (at, (?=))
-
---------------------------------------------------------------------------------
-class Trim a where
-  type Trimmed a :: *
-  type Time a :: *
-  trim :: a -> Moment (Time a) (Trimmed a)
-
-instance Trim (Behavior t a) where
-  type Trimmed (Behavior t a) = AnyMoment Behavior a
-  type Time (Behavior t a) = t
-  trim = trimB
-
-instance Trim (Event t a) where
-  type Trimmed (Event t a) = AnyMoment Event a
-  type Time (Event t a) = t
-  trim = trimE
 
 --------------------------------------------------------------------------------
 react :: (forall t. Frameworks t => Moment t (Behavior t HTML)) -> IO ()

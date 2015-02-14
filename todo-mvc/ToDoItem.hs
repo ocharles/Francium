@@ -3,10 +3,13 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE StandaloneDeriving #-}
 
 module ToDoItem where
 
 import Francium
+import GHC.Generics
 import Francium.HTML
 import qualified Francium.HTML as HTML
 import Control.Lens ((?=), (.=), at)
@@ -25,8 +28,8 @@ negateStatus =
     Incomplete -> Complete
     Complete -> Incomplete
 
-instance TrimOutput ToDoItem where
-  trimOutput (ToDoItemOutput b c) = ToDoItemOutput <$> trimB b <*> trimE c
+deriving instance Generic (Output b e ToDoItem)
+instance TrimOutput ToDoItem
 
 data State = Viewing | Editing deriving (Eq)
 
