@@ -8,6 +8,7 @@ import Prelude hiding (div, span)
 import Reactive.Banana
 import GHCJS.Foreign
 import GHCJS.Types
+import Francium.Component
 
 import NewItemAdder
 import ToDoItem
@@ -15,11 +16,14 @@ import StateFilter
 
 main :: IO ()
 main =
-  react (do itemAdder <- mkNewItemAdder
+  react (do itemAdder <- construct NewItemAdder
+            stateFilter <- construct StateFilter
             eAddItem <-
               execute ((\x ->
-                          FrameworksMoment (trim =<< mkToDoItem x)) <$>
-                       niaComplete itemAdder)
+                          FrameworksMoment
+                            (trimComponent =<<
+                             construct (ToDoItem x))) <$>
+                       (addItem (outputs itemAdder)))
             let eItemsChanged =
                   accumE []
                          ((append <$> eAddItem) `union`
@@ -34,25 +38,24 @@ main =
                         switchB (pure [])
                                 (fmap (sequenceA . fmap f) eItemsChanged)
                   in zipWith (,) <$>
-                     switchField tdiView <*>
-                     switchField tdiStatus
+                     switchField render <*>
+                     switchField (status . outputs)
                 destroy =
                   switchE (fmap (\events ->
                                    anyMoment (fmap (unions .
                                                     (zipWith (\i -> (deleteElem i <$))
                                                              [0 ..]))
                                                    (mapM now events)))
-                                (fmap (map tdiDestroy) eItemsChanged))
-            stateFilter <- mkStateFilter
+                                (fmap (map (ToDoItem.destroy . outputs)) eItemsChanged))
+                visibleItems =
+                  liftA2 (\f ->
+                            map fst .
+                            (filter (f . snd)))
+                         (stateFilterF (outputs stateFilter))
+                         items
             return (appView <$>
-                    (TodoApp <$> niaView itemAdder <*>
-                     ((\f ->
-                         map fst .
-                         (filter (f . snd))) <$>
-                      sfFilter stateFilter <*>
-                      items) <*>
-                     openItemCount <*>
-                     sfView stateFilter)))
+                    (TodoApp <$> render itemAdder <*> visibleItems <*>
+                     openItemCount <*> render stateFilter)))
   where append x xs =
           xs ++
           [x]
@@ -124,7 +127,12 @@ toDoSummary n stateFilter =
        (do attrs .
              at "style" ?=
              "border-top-color: rgb(230, 230, 230); border-top-style: solid; border-top-width: 1px; text-align: center; height: 20px; padding: 10px 15px; color: rgb(119, 119, 119);")
-       [with span
+       [with div
+             (attrs .
+              at "style" ?=
+              "content: ''; position: absolute; right: 0; bottom: 0; left: 0; height: 50px; overflow: hidden; box-shadow: 0 1px 1px rgba(0, 0, 0, 0.2), 0 8px 0 -3px #f6f6f6, 0 9px 1px -3px rgba(0, 0, 0, 0.2), 0 16px 0 -6px #f6f6f6, 0 17px 2px -6px rgba(0, 0, 0, 0.2);")
+             []
+       ,with span
              (do attrs .
                    at "style" ?=
                    "text-align: left; float: left;")
@@ -134,7 +142,9 @@ toDoSummary n stateFilter =
                          "font-weight: 300;")
                    [text (show n)]
              ," "
-             ,if n == 1 then "item" else "items"
+             ,if n == 1
+                 then "item"
+                 else "items"
              ," left"]
        ,stateFilter
        ,with button

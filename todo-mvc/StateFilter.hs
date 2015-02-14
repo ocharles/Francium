@@ -1,8 +1,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecursiveDo #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE TypeFamilies #-}
 
-module StateFilter where
+module StateFilter (StateFilter(..), stateFilterF) where
 
 import Data.Function (on)
 import Data.Traversable (for)
@@ -14,63 +15,66 @@ import Prelude hiding (div, span)
 import Reactive.Banana
 import GHCJS.Foreign
 import GHCJS.Types
+import Francium.Component
 
 import ToDoItem (ToDoItem(..), Status(..))
 
 data Filter = All | Active | Completed
   deriving (Bounded, Enum, Eq, Ord, Show)
 
-data StateFilter t =
-  StateFilter {sfFilter :: Behavior t (Status -> Bool)
-              ,sfView :: Behavior t HTML}
+data StateFilter = StateFilter
 
-mkStateFilter :: Frameworks t => Moment t (StateFilter t)
-mkStateFilter =
-  mdo (views,stateChanges) <-
-        fmap unzip
-             (for [minBound .. maxBound]
-                  (\state ->
-                     do mouseOver <- newDOMEvent
-                        mouseOut <- newDOMEvent
-                        changeState <-
-                          fmap (state <$) newDOMEvent
-                        let mouseHovering =
-                              accumB False
-                                     ((const True <$
-                                       domEvent mouseOver) `union`
-                                      (const False <$
-                                       domEvent mouseOut))
-                            filterSelection =
-                              liftA2 (\isHovering isSelected ->
-                                        if isSelected
-                                           then Selected
-                                           else if isHovering
-                                                   then Hover
-                                                   else NoSelection)
-                                     mouseHovering
-                                     (fmap (state ==) currentState)
-                        return (renderStateSelector <$> filterSelection <*>
-                                pure state <*> pure changeState <*>
-                                pure mouseOver <*> pure mouseOut
-                               ,changeState)))
-      let currentState =
-            stepper initialState (unions (map domEvent stateChanges))
-      return StateFilter {sfView = into container <$> sequenceA views
-                         ,sfFilter =
-                            (\filter_ ->
-                               case filter_ of
-                                 All ->
-                                   const True
-                                 Active -> (== Incomplete)
-                                 Completed -> (== Complete)) <$>
-                            currentState}
-  where container =
-          with ul
-               (do attrs .
-                     at "style" ?=
-                     "left: 0px; right: 0px; position: absolute; list-style-type: none; padding: 0px; margin: 0px;")
-               []
-        initialState = All
+instance Component StateFilter where
+  data Output behavior event
+       StateFilter = StateFilterOutputs{stateFilterF ::
+                                        behavior (Status -> Bool)}
+  construct StateFilter =
+    mdo (views,stateChanges) <-
+          fmap unzip
+               (for [minBound .. maxBound]
+                    (\state ->
+                       do mouseOver <- newDOMEvent
+                          mouseOut <- newDOMEvent
+                          changeState <-
+                            fmap (state <$) newDOMEvent
+                          let mouseHovering =
+                                accumB False
+                                       ((const True <$
+                                         domEvent mouseOver) `union`
+                                        (const False <$
+                                         domEvent mouseOut))
+                              filterSelection =
+                                liftA2 (\isHovering isSelected ->
+                                          if isSelected
+                                             then Selected
+                                             else if isHovering
+                                                     then Hover
+                                                     else NoSelection)
+                                       mouseHovering
+                                       (fmap (state ==) currentState)
+                          return (renderStateSelector <$> filterSelection <*>
+                                  pure state <*> pure changeState <*>
+                                  pure mouseOver <*> pure mouseOut
+                                 ,changeState)))
+        let currentState =
+              stepper initialState (unions (map domEvent stateChanges))
+        return Instantiation {render = into container <$> sequenceA views
+                             ,outputs =
+                                StateFilterOutputs
+                                  ((\filter_ ->
+                                      case filter_ of
+                                        All ->
+                                          const True
+                                        Active -> (== Incomplete)
+                                        Completed -> (== Complete)) <$>
+                                   currentState)}
+    where container =
+            with ul
+                 (do attrs .
+                       at "style" ?=
+                       "left: 0px; right: 0px; position: absolute; list-style-type: none; padding: 0px; margin: 0px;")
+                 []
+          initialState = All
 
 data FilterSelection = Selected | Hover | NoSelection
   deriving (Show)
