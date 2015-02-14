@@ -28,5 +28,6 @@ library
   exposed-modules:
     Immutable
     Francium
+    Francium.Component
     Francium.HTML
     Francium.DOMEvent
