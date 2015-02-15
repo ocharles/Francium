@@ -217,29 +217,32 @@ appView (TodoApp addANewItem items openItemCount stateFilter) =
              (attrs .
               at "style" ?=
               "box-shadow: rgba(0, 0, 0, 0.2) 0px 2px 4px 0px, rgba(0, 0, 0, 0.0980392) 0px 25px 50px 0px; position: relative; margin: 130px 0px 40px; background-color: rgb(255, 255, 255);")
-             [into header [pageTitle,addANewItem]
-             ,with section
-                   (do attrs .
-                         at "style" ?=
-                         "border-top-color: rgb(230, 230, 230); border-top-style: solid; border-top-width: 1px; z-index: 2; position: relative;")
-                   [with input
-                         (do attrs .
-                               at "style" ?=
-                               "outline-style: none; border-style: none; text-align: center; height: 34px; width: 60px; left: -12px; top: -55px; position: absolute; -webkit-appearance: none; transform: rotate(90deg); -webkit-transform: rotate(90deg); background-image: none;"
-                             attrs .
-                               at "type" ?=
-                               "checkbox")
-                         []
-                   ,with label
-                         (do attrs .
-                               at "style" ?=
-                               "display: none;"
-                             attrs .
-                               at "for" ?=
-                               "toggle-all")
-                         ["Mark all as complete"]
-                   ,into toDoContainer (map (into itemContainer . pure) items)]
-             ,toDoSummary openItemCount stateFilter]
+             (into header [pageTitle,addANewItem] :
+              case items of
+                [] -> []
+                _ ->
+                  [with section
+                        (do attrs .
+                              at "style" ?=
+                              "border-top-color: rgb(230, 230, 230); border-top-style: solid; border-top-width: 1px; z-index: 2; position: relative;")
+                        [with input
+                              (do attrs .
+                                    at "style" ?=
+                                    "outline-style: none; border-style: none; text-align: center; height: 34px; width: 60px; left: -12px; top: -55px; position: absolute; -webkit-appearance: none; transform: rotate(90deg); -webkit-transform: rotate(90deg); background-image: none;"
+                                  attrs .
+                                    at "type" ?=
+                                    "checkbox")
+                              []
+                        ,with label
+                              (do attrs .
+                                    at "style" ?=
+                                    "display: none;"
+                                  attrs .
+                                    at "for" ?=
+                                    "toggle-all")
+                              ["Mark all as complete"]
+                        ,into toDoContainer (map (into itemContainer . pure) items)]
+                  ,toDoSummary openItemCount stateFilter])
        ,pageFooter
        ,with div
              (do attrs .
