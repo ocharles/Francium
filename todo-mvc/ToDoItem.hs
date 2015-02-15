@@ -8,6 +8,7 @@
 
 module ToDoItem where
 
+import Control.Monad (void)
 import Data.Bool (bool)
 import Control.Lens ((?=), (.=), at)
 import Control.Monad.Trans.State.Strict (execState)
@@ -60,7 +61,10 @@ instance Component ToDoItem where
              whenE ((Viewing ==) <$> state)
                    (domEvent click)
            switchToViewing =
-             lostFocus (outputs textInput)
+             whenE (fmap (Editing ==) state)
+                   (unions [lostFocus (outputs textInput)
+                           ,void (filterE (`elem` [13,27])
+                                          (keyPressed (TrackFocus.passThrough (outputs textInput))))])
            state =
              accumB Viewing
                     ((const Editing <$
