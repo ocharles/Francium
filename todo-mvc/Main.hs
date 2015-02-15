@@ -16,6 +16,8 @@ import Reactive.Banana
 import StateFilter
 import ToDoItem
 import ToggleAll
+import Data.Maybe 
+import Data.Traversable
 import qualified Francium.HTML as HTML
 import qualified Storage
 
@@ -38,20 +40,42 @@ main =
                                    construct (ToDoItem x setStatus)))
                              (filterE (not . isEmptyString . fromJSString)
                                       (addItem (outputs itemAdder))))
+             openingStorage <-
+               liftIO (fmap (fromMaybe []) Storage.retrieve)
+             initialItems <-
+               for openingStorage
+                   (\item ->
+                      do component <-
+                           trimComponent =<<
+                           construct (ToDoItem (toJSString (Storage.title item)) setStatus)
+                         return (component
+                                ,(if Storage.complete item
+                                     then Complete
+                                     else Incomplete)))
+             startingView <-
+               fmap sequenceA
+                    (for initialItems
+                         (\(item,_) ->
+                            do render_ <-
+                                 now (render item)
+                               status_ <-
+                                 now (status (outputs item))
+                               return (liftA2 (,) render_ status_)))
              let eItemsChanged =
-                   accumE []
+                   accumE (map fst initialItems)
                           (unions [fmap append eAddItem
                                   ,destroy
                                   ,fmap const
                                         (incompleteItems <@
                                          ClearCompleted.clearCompleted (outputs clearCompleted))])
                  incompleteItems =
-                   fmap (map snd .
-                         filter ((== Incomplete) . fst))
-                        (switchB (pure [])
-                                 (fmap (traverse (\item ->
-                                                    fmap (id &&& const item)
-                                                         (status (outputs item))))
+                   switchB (pure (map fst (filter (((== Incomplete) . snd)) initialItems)))
+                           (fmap (fmap (map snd .
+                                        filter ((== Incomplete) . fst)))
+                                 (fmap (sequenceA .
+                                        map (\item ->
+                                               fmap (id &&& const item)
+                                                    (status (outputs item))))
                                        eItemsChanged))
                  openItemCount =
                    fmap (length .
@@ -59,12 +83,13 @@ main =
                          map snd)
                         items
                  items =
-                   let switchField f =
-                         switchB (pure [])
-                                 (fmap (sequenceA . fmap f) eItemsChanged)
-                   in zipWith (,) <$>
-                      switchField render <*>
-                      switchField (status . outputs)
+                   switchB startingView
+                           (fmap (sequenceA .
+                                  fmap (\item ->
+                                          liftA2 (,)
+                                                 (render item)
+                                                 (status (outputs item))))
+                                 eItemsChanged)
                  destroy =
                    switchE (fmap (\events ->
                                     anyMoment (fmap (unions .
@@ -79,7 +104,7 @@ main =
                           (stateFilterF (outputs stateFilter))
                           items
                  stableData =
-                   switchB (pure [])
+                   switchB (pure openingStorage)
                            (fmap (traverse (\item ->
                                               liftA2 Storage.ToDoItem
                                                      (fmap fromJSString
