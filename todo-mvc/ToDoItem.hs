@@ -210,6 +210,9 @@ instance Component ToDoCheckbox where
                                                   if b
                                                      then Just "checked"
                                                      else Nothing
+                                                attrs .
+                                                  at "type" ?=
+                                                  "checkbox"
                                                 onClick click)
                                             [])
                                     isChecked}
