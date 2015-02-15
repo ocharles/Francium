@@ -1,80 +1,89 @@
+{-# LANGUAGE RecursiveDo #-}
 {-# LANGUAGE OverloadedStrings #-}
 
+import ClearCompleted
 import Control.Arrow
-import Francium
-import Francium.HTML hiding (map)
-import Control.Monad
-import qualified Francium.HTML as HTML
 import Control.Lens ((?=), at)
-import Prelude hiding (div, span)
-import Reactive.Banana
+import Control.Monad
+import Francium
+import Francium.Component
+import Francium.HTML hiding (map)
 import GHCJS.Foreign
 import GHCJS.Types
-import Francium.Component
-
-import ClearCompleted
 import NewItemAdder
-import ToDoItem
+import Prelude hiding (div, span)
+import Reactive.Banana
 import StateFilter
+import ToDoItem
+import qualified Francium.HTML as HTML
+import ToggleAll
 
 main :: IO ()
 main =
-  react (do itemAdder <- construct NewItemAdder
-            stateFilter <- construct StateFilter
-            clearCompleted <-
-              construct ClearCompleted
-            eAddItem <-
-              execute (fmap (\x ->
-                               FrameworksMoment
-                                 (trimComponent =<<
-                                  construct (ToDoItem x)))
-                            (filterE (not . isEmptyString . fromJSString)
-                                     (addItem (outputs itemAdder))))
-            let eItemsChanged =
-                  accumE []
-                         (unions [fmap append eAddItem
-                                 ,destroy
-                                 ,fmap const
-                                       (incompleteItems <@
-                                        ClearCompleted.clearCompleted (outputs clearCompleted))])
-                incompleteItems =
-                  fmap (map snd .
-                        filter ((== Incomplete) . fst))
-                       (switchB (pure [])
-                                (fmap (traverse (\item ->
-                                                   fmap (id &&& const item)
-                                                        (status (outputs item))))
-                                      eItemsChanged))
-                openItemCount =
-                  fmap (length .
-                        filter (== Incomplete) .
-                        map snd)
-                       items
-                items =
-                  let switchField f =
-                        switchB (pure [])
-                                (fmap (sequenceA . fmap f) eItemsChanged)
-                  in zipWith (,) <$>
-                     switchField render <*>
-                     switchField (status . outputs)
-                destroy =
-                  switchE (fmap (\events ->
-                                   anyMoment (fmap (unions .
-                                                    (zipWith (\i -> (deleteElem i <$))
-                                                             [0 ..]))
-                                                   (mapM now events)))
-                                (fmap (map (ToDoItem.destroy . outputs)) eItemsChanged))
-                visibleItems =
-                  liftA2 (\f ->
-                            map fst .
-                            (filter (f . snd)))
-                         (stateFilterF (outputs stateFilter))
-                         items
-            return (fmap appView
-                         (TodoApp <$> render itemAdder <*> visibleItems <*>
-                          openItemCount <*> render stateFilter <*>
-                          fmap void items <*>
-                          render clearCompleted)))
+  react (mdo itemAdder <- construct NewItemAdder
+             stateFilter <- construct StateFilter
+             clearCompleted <-
+               construct ClearCompleted
+             toggleAll <-
+               do statuses <-
+                    trimB (fmap (map snd) items)
+                  construct (ToggleAll statuses)
+             reactimate (print <$> (toggleUpdate (outputs toggleAll)))
+             setStatus <-
+               trimE (toggleUpdate (outputs toggleAll))
+             eAddItem <-
+               execute (fmap (\x ->
+                                FrameworksMoment
+                                  (trimComponent =<<
+                                   construct (ToDoItem x setStatus)))
+                             (filterE (not . isEmptyString . fromJSString)
+                                      (addItem (outputs itemAdder))))
+             let eItemsChanged =
+                   accumE []
+                          (unions [fmap append eAddItem
+                                  ,destroy
+                                  ,fmap const
+                                        (incompleteItems <@
+                                         ClearCompleted.clearCompleted (outputs clearCompleted))])
+                 incompleteItems =
+                   fmap (map snd .
+                         filter ((== Incomplete) . fst))
+                        (switchB (pure [])
+                                 (fmap (traverse (\item ->
+                                                    fmap (id &&& const item)
+                                                         (status (outputs item))))
+                                       eItemsChanged))
+                 openItemCount =
+                   fmap (length .
+                         filter (== Incomplete) .
+                         map snd)
+                        items
+                 items =
+                   let switchField f =
+                         switchB (pure [])
+                                 (fmap (sequenceA . fmap f) eItemsChanged)
+                   in zipWith (,) <$>
+                      switchField render <*>
+                      switchField (status . outputs)
+                 destroy =
+                   switchE (fmap (\events ->
+                                    anyMoment (fmap (unions .
+                                                     (zipWith (\i -> (deleteElem i <$))
+                                                              [0 ..]))
+                                                    (mapM now events)))
+                                 (fmap (map (ToDoItem.destroy . outputs)) eItemsChanged))
+                 visibleItems =
+                   liftA2 (\f ->
+                             map fst .
+                             (filter (f . snd)))
+                          (stateFilterF (outputs stateFilter))
+                          items
+             return (fmap appView
+                          (TodoApp <$> render itemAdder <*> visibleItems <*>
+                           openItemCount <*> render stateFilter <*>
+                           fmap void items <*>
+                           render clearCompleted <*>
+                           render toggleAll)))
   where append x xs =
           xs ++
           [x]
@@ -232,10 +241,10 @@ data TodoApp =
           ,taOpenItemCount :: Int
           ,taStateFilter :: HTML
           ,taAllItems :: [()]
-          ,taClearCompleted :: HTML}
+          ,taClearCompleted :: HTML, taToggleAll :: HTML}
 
 appView :: TodoApp -> HTML
-appView (TodoApp addANewItem items openItemCount stateFilter allItems clearCompleted) =
+appView (TodoApp addANewItem items openItemCount stateFilter allItems clearCompleted toggleAll) =
   into mainContainer
        [with section
              (attrs .
@@ -249,14 +258,7 @@ appView (TodoApp addANewItem items openItemCount stateFilter allItems clearCompl
                         (do attrs .
                               at "style" ?=
                               "border-top-color: rgb(230, 230, 230); border-top-style: solid; border-top-width: 1px; z-index: 2; position: relative;")
-                        [with input
-                              (do attrs .
-                                    at "style" ?=
-                                    "outline-style: none; border-style: none; text-align: center; height: 34px; width: 60px; left: -12px; top: -55px; position: absolute; -webkit-appearance: none; transform: rotate(90deg); -webkit-transform: rotate(90deg); background-image: none;"
-                                  attrs .
-                                    at "type" ?=
-                                    "checkbox")
-                              []
+                        [toggleAll
                         ,with label
                               (do attrs .
                                     at "style" ?=

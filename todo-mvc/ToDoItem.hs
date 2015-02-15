@@ -27,7 +27,7 @@ import TextInput
 import TrackFocus
 
 data Status = Complete | Incomplete
-  deriving (Bounded, Enum, Eq, Ord)
+  deriving (Bounded, Enum, Eq, Ord, Show)
 
 negateStatus :: Status -> Status
 negateStatus =
@@ -41,7 +41,9 @@ instance TrimOutput ToDoItem
 data State = Viewing | Editing deriving (Eq)
 
 --------------------------------------------------------------------------------
-data ToDoItem = ToDoItem { initialContent :: JSString }
+data ToDoItem =
+  ToDoItem {initialContent :: JSString
+           ,setStatus :: AnyMoment Event Status}
 
 instance Component ToDoItem where
   data Output behavior event ToDoItem = ToDoItemOutput{status ::
@@ -56,6 +58,7 @@ instance Component ToDoItem where
        destroyButton <-
          construct (Button ["\215"])
        statusCheckbox <- construct ToDoCheckbox
+       setStatus' <- now (setStatus toDoItem)
        click <- newDOMEvent
        let switchToEditing =
              whenE ((Viewing ==) <$> state)
@@ -67,13 +70,16 @@ instance Component ToDoItem where
                                           (keyPressed (TrackFocus.passThrough (outputs textInput))))])
            state =
              accumB Viewing
-                    ((const Editing <$
-                      switchToEditing) `union`
-                     (const Viewing <$
-                      switchToViewing))
+                    (unions [const Editing <$
+                             switchToEditing
+                            ,const Viewing <$
+                             switchToViewing])
            status =
-             fmap (bool Incomplete Complete)
-                  (checked (outputs statusCheckbox))
+             accumB Incomplete
+                    (unions [fmap (\b _ ->
+                                     bool Incomplete Complete b)
+                                  (toggled (outputs statusCheckbox))
+                            ,const <$> setStatus'])
            showDestroy =
              liftA2 (&&)
                     (fmap (Viewing ==) state)
@@ -199,13 +205,13 @@ data ToDoCheckbox = ToDoCheckbox
 
 instance Component ToDoCheckbox where
   data Output behavior event
-       ToDoCheckbox = ToDoCheckboxOutput{checked :: behavior Bool}
+       ToDoCheckbox = ToDoCheckboxOutput{toggled :: event Bool}
   construct ToDoCheckbox =
     do click <- newDOMEvent
-       let isChecked =
-             accumB False (not <$ domEvent click)
+       let toggled_ = accumE False (not <$ domEvent click)
+           isChecked = stepper False toggled_
        return Instantiation {outputs =
-                               ToDoCheckboxOutput isChecked
+                               ToDoCheckboxOutput toggled_
                             ,render =
                                fmap (\b ->
                                        with input
