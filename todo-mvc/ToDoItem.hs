@@ -8,10 +8,10 @@
 
 module ToDoItem where
 
-import Control.Monad (void)
-import Data.Bool (bool)
 import Control.Lens ((?=), (.=), at)
+import Control.Monad (void)
 import Control.Monad.Trans.State.Strict (execState)
+import Data.Bool (bool)
 import Francium
 import Francium.Component
 import Francium.HTML
@@ -48,7 +48,8 @@ data ToDoItem =
 instance Component ToDoItem where
   data Output behavior event ToDoItem = ToDoItemOutput{status ::
                                                      behavior Status,
-                                                     destroy :: event ()}
+                                                     destroy :: event (),
+                                                     steppedContent :: behavior JSString}
   construct toDoItem =
     do container <-
          construct (HoverObserver (PureComponent div))
@@ -102,7 +103,11 @@ instance Component ToDoItem where
                                        state <*> render textInput <*> itemValue <*>
                                        status
                              ,outputs =
-                                ToDoItemOutput status selfDestruct})
+                                ToDoItemOutput
+                                  status
+                                  selfDestruct
+                                  (stepper (initialContent toDoItem)
+                                           (itemValue <@ switchToViewing))})
     where itemRenderer labelClick destroy statusCheckbox container showDestroy state textInput inputValue status =
             let svgCheckbox =
                   case state of

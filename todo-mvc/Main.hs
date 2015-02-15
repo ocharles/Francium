@@ -15,8 +15,9 @@ import Prelude hiding (div, span)
 import Reactive.Banana
 import StateFilter
 import ToDoItem
-import qualified Francium.HTML as HTML
 import ToggleAll
+import qualified Francium.HTML as HTML
+import qualified Storage
 
 main :: IO ()
 main =
@@ -77,6 +78,16 @@ main =
                              (filter (f . snd)))
                           (stateFilterF (outputs stateFilter))
                           items
+                 stableData =
+                   switchB (pure [])
+                           (fmap (traverse (\item ->
+                                              liftA2 Storage.ToDoItem
+                                                     (fmap fromJSString
+                                                           (steppedContent (outputs item)))
+                                                     (fmap (== Complete) (status (outputs item)))))
+                                 eItemsChanged)
+             stableDataChanged <- changes stableData
+             reactimate' (fmap (fmap Storage.store) stableDataChanged)
              return (fmap appView
                           (TodoApp <$> render itemAdder <*> visibleItems <*>
                            openItemCount <*> render stateFilter <*>
