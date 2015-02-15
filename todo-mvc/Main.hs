@@ -23,7 +23,8 @@ main =
                                FrameworksMoment
                                  (trimComponent =<<
                                   construct (ToDoItem x)))
-                            (addItem (outputs itemAdder)))
+                            (filterE (not . isEmptyString . fromJSString)
+                                     (addItem (outputs itemAdder))))
             let eItemsChanged =
                   accumE []
                          ((fmap append eAddItem) `union`
@@ -59,6 +60,8 @@ main =
   where append x xs =
           xs ++
           [x]
+        isEmptyString x =
+          null (fromJSString x :: String)
 
 deleteElem :: Int -> [a] -> [a]
 deleteElem i [] = []
