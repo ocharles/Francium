@@ -1,5 +1,2 @@
-* Toggle All
-- [ ] Doesn't currently work properly as the internal checkbox for each to-do item does not update.
-
 * Persistance
 Needs to persist to local storage.

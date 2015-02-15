@@ -28,7 +28,6 @@ main =
                do statuses <-
                     trimB (fmap (map snd) items)
                   construct (ToggleAll statuses)
-             reactimate (print <$> (toggleUpdate (outputs toggleAll)))
              setStatus <-
                trimE (toggleUpdate (outputs toggleAll))
              eAddItem <-

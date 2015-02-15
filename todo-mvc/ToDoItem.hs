@@ -57,8 +57,14 @@ instance Component ToDoItem where
             construct (TrackFocus (KeyPressObserver (TextInput (initialContent toDoItem) never')))
        destroyButton <-
          construct (Button ["\215"])
-       statusCheckbox <- construct ToDoCheckbox
        setStatus' <- now (setStatus toDoItem)
+       statusCheckbox <-
+         do toggle <-
+              trimE (fmap (\case
+                             Incomplete -> False
+                             Complete -> True)
+                          setStatus')
+            construct (ToDoCheckbox toggle)
        click <- newDOMEvent
        let switchToEditing =
              whenE ((Viewing ==) <$> state)
@@ -201,14 +207,16 @@ instance Component ToDoItem where
             null (fromJSString x :: String)
 
 --------------------------------------------------------------------------------
-data ToDoCheckbox = ToDoCheckbox
+data ToDoCheckbox = ToDoCheckbox { reset :: AnyMoment Event Bool }
 
 instance Component ToDoCheckbox where
   data Output behavior event
        ToDoCheckbox = ToDoCheckboxOutput{toggled :: event Bool}
-  construct ToDoCheckbox =
+  construct c =
     do click <- newDOMEvent
-       let toggled_ = accumE False (not <$ domEvent click)
+       reset' <- now (reset c)
+       let toggled_ =
+             accumE False (unions [not <$ domEvent click,const <$> reset'])
            isChecked = stepper False toggled_
        return Instantiation {outputs =
                                ToDoCheckboxOutput toggled_
