@@ -1,7 +1,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 
+import Control.Arrow
 import Francium
 import Francium.HTML hiding (map)
+import Control.Monad
 import qualified Francium.HTML as HTML
 import Control.Lens ((?=), at)
 import Prelude hiding (div, span)
@@ -10,6 +12,7 @@ import GHCJS.Foreign
 import GHCJS.Types
 import Francium.Component
 
+import ClearCompleted
 import NewItemAdder
 import ToDoItem
 import StateFilter
@@ -18,6 +21,8 @@ main :: IO ()
 main =
   react (do itemAdder <- construct NewItemAdder
             stateFilter <- construct StateFilter
+            clearCompleted <-
+              construct ClearCompleted
             eAddItem <-
               execute (fmap (\x ->
                                FrameworksMoment
@@ -27,8 +32,19 @@ main =
                                      (addItem (outputs itemAdder))))
             let eItemsChanged =
                   accumE []
-                         ((fmap append eAddItem) `union`
-                          destroy)
+                         (unions [fmap append eAddItem
+                                 ,destroy
+                                 ,fmap const
+                                       (incompleteItems <@
+                                        ClearCompleted.clearCompleted (outputs clearCompleted))])
+                incompleteItems =
+                  fmap (map snd .
+                        filter ((== Incomplete) . fst))
+                       (switchB (pure [])
+                                (fmap (traverse (\item ->
+                                                   fmap (id &&& const item)
+                                                        (status (outputs item))))
+                                      eItemsChanged))
                 openItemCount =
                   fmap (length .
                         filter (== Incomplete) .
@@ -56,7 +72,9 @@ main =
                          items
             return (fmap appView
                          (TodoApp <$> render itemAdder <*> visibleItems <*>
-                          openItemCount <*> render stateFilter)))
+                          openItemCount <*> render stateFilter <*>
+                          fmap void items <*>
+                          render clearCompleted)))
   where append x xs =
           xs ++
           [x]
@@ -124,8 +142,8 @@ completeToDo =
                          "-webkit-font-smoothing: antialiased; -webkit-appearance: none; vertical-align: baseline; font-size: 30px; border-width: 0px; padding: 0px; margin: auto 0px 11px; outline-style: none; -webkit-transition: color 0.2s ease-out initial; transition: color 0.2s ease-out initial; color: rgb(204, 154, 154); height: 40px; width: 40px; bottom: 0px; right: 10px; top: 0px; position: absolute; display: none; background-image: none;")
                    []]]
 
-toDoSummary :: Int -> HTML -> HTML
-toDoSummary n stateFilter =
+toDoSummary :: Int -> HTML -> HTML -> HTML
+toDoSummary n stateFilter clearCompleted =
   with footer
        (do attrs .
              at "style" ?=
@@ -150,6 +168,7 @@ toDoSummary n stateFilter =
                  else "items"
              ," left"]
        ,stateFilter
+       ,clearCompleted
        ,with button
              (do attrs .
                    at "style" ?=
@@ -211,17 +230,19 @@ data TodoApp =
   TodoApp {taAddANewItem :: HTML
           ,taItems :: [HTML]
           ,taOpenItemCount :: Int
-          ,taStateFilter :: HTML}
+          ,taStateFilter :: HTML
+          ,taAllItems :: [()]
+          ,taClearCompleted :: HTML}
 
 appView :: TodoApp -> HTML
-appView (TodoApp addANewItem items openItemCount stateFilter) =
+appView (TodoApp addANewItem items openItemCount stateFilter allItems clearCompleted) =
   into mainContainer
        [with section
              (attrs .
               at "style" ?=
               "box-shadow: rgba(0, 0, 0, 0.2) 0px 2px 4px 0px, rgba(0, 0, 0, 0.0980392) 0px 25px 50px 0px; position: relative; margin: 130px 0px 40px; background-color: rgb(255, 255, 255);")
              (into header [pageTitle,addANewItem] :
-              case items of
+              case allItems of
                 [] -> []
                 _ ->
                   [with section
@@ -245,7 +266,7 @@ appView (TodoApp addANewItem items openItemCount stateFilter) =
                                     "toggle-all")
                               ["Mark all as complete"]
                         ,into toDoContainer (map (into itemContainer . pure) items)]
-                  ,toDoSummary openItemCount stateFilter])
+                  ,toDoSummary openItemCount stateFilter clearCompleted])
        ,pageFooter
        ,with div
              (do attrs .
