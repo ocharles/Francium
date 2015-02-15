@@ -15,6 +15,7 @@ import Francium
 import Francium.Component
 import Francium.HTML
 import GHC.Generics
+import GHCJS.Foreign
 import GHCJS.Types
 import HoverObserver
 import KeyPressObserver
@@ -58,12 +59,14 @@ instance Component ToDoItem where
        let switchToEditing =
              whenE ((Viewing ==) <$> state)
                    (domEvent click)
+           switchToViewing =
+             lostFocus (outputs textInput)
            state =
              accumB Viewing
                     ((const Editing <$
                       switchToEditing) `union`
                      (const Viewing <$
-                      lostFocus (outputs textInput)))
+                      switchToViewing))
            status =
              fmap (bool Incomplete Complete)
                   (checked (outputs statusCheckbox))
@@ -73,6 +76,9 @@ instance Component ToDoItem where
                     (isHovered (outputs container))
            itemValue =
              TextInput.value (KeyPressObserver.passThrough (TrackFocus.passThrough (outputs textInput)))
+           selfDestruct =
+             unions [clicked (outputs destroyButton)
+                    ,whenE (fmap isEmptyString itemValue) switchToViewing]
        return (Instantiation {render = itemRenderer click <$>
                                        render destroyButton <*>
                                        render statusCheckbox <*>
@@ -80,8 +86,7 @@ instance Component ToDoItem where
                                        state <*> render textInput <*> itemValue <*>
                                        status
                              ,outputs =
-                                ToDoItemOutput status
-                                               (clicked (outputs destroyButton))})
+                                ToDoItemOutput status selfDestruct})
     where itemRenderer labelClick destroy statusCheckbox container showDestroy state textInput inputValue status =
             let svgCheckbox =
                   case state of
@@ -182,6 +187,8 @@ instance Component ToDoItem where
           svg = svgElement "svg"
           circle = svgElement "circle"
           path = svgElement "path"
+          isEmptyString x =
+            null (fromJSString x :: String)
 
 --------------------------------------------------------------------------------
 data ToDoCheckbox = ToDoCheckbox
