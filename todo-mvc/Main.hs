@@ -10,7 +10,6 @@ import Francium.Component
 import Francium.HTML hiding (map)
 import NewItemAdder
 import Prelude hiding (div, span)
-import Reactive.Banana
 import StateFilter
 import ToDoItem
 import ToggleAll
@@ -22,22 +21,16 @@ main =
              clearCompleted <-
                construct ClearCompleted
              toggleAll <-
-               do statuses <-
-                    trimB (allItems (outputs toDoList))
-                  construct (ToggleAll statuses)
-             setStatus <-
-               trimE (toggleUpdate (outputs toggleAll))
+               construct (ToggleAll (allItems (outputs toDoList)))
              toDoList <-
-               do addItemLater <-
-                    trimE (NewItemAdder.addItem (outputs itemAdder))
-                  clearCompletedLater <-
-                    trimE (ClearCompleted.clearCompleted (outputs clearCompleted))
-                  stateFilterFLater <-
-                    trimB (StateFilter.stateFilterF (outputs stateFilter))
-                  construct (ToDoList {ToDoList.addItem = addItemLater
-                                      ,ToDoList.clearCompleted = clearCompletedLater
-                                      ,statusFilter = stateFilterFLater
-                                      ,setStatuses = setStatus})
+               construct (ToDoList {ToDoList.addItem =
+                                      NewItemAdder.addItem (outputs itemAdder)
+                                   ,ToDoList.clearCompleted =
+                                      ClearCompleted.clearCompleted (outputs clearCompleted)
+                                   ,statusFilter =
+                                      StateFilter.stateFilterF (outputs stateFilter)
+                                   ,setStatuses =
+                                      toggleUpdate (outputs toggleAll)})
              let openItemCount =
                    fmap (length .
                          filter (== Incomplete))

@@ -24,7 +24,7 @@ import Francium.HTML
 -- associated with the component are recorded in an associated data type.
 class Component a where
   data Output (behavior :: * -> *) (event :: * -> *) a :: *
-  construct :: Frameworks t => a -> Moment t (Instantiated t a)
+  construct :: Frameworks t => a t -> Moment t (Instantiated t a)
 
 -- | A 'Component' instantiated at a known point in time. Users will most commonly
 -- work with 'Instantiated' components, as these are the components we observe

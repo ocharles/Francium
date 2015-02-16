@@ -17,28 +17,28 @@ import Reactive.Banana
 import ToDoItem
 import qualified Storage
 
-data ToDoList =
-  ToDoList {addItem :: AnyMoment Event JSString
-           ,setStatuses :: AnyMoment Event Status
-           ,statusFilter :: AnyMoment Behavior (Status -> Bool)
-           ,clearCompleted :: AnyMoment Event ()}
+data ToDoList t =
+  ToDoList {addItem :: Event t JSString
+           ,setStatuses :: Event t Status
+           ,statusFilter :: Behavior t (Status -> Bool)
+           ,clearCompleted :: Event t ()}
 
 instance Component ToDoList where
   data Output behavior event ToDoList = ToDoListOutput{allItems ::
                                                      behavior [Status]}
   construct tdi =
-    mdo addItemNow <-
-          fmap (filterE (not . isEmptyString . fromJSString))
-               (now (addItem tdi))
-        clearCompletedNow <-
-          now (clearCompleted tdi)
-        statusFilterNow <- now (statusFilter tdi)
+    mdo let addNonEmptyItem =
+              filterE (not . isEmptyString . fromJSString)
+                      (addItem tdi)
         eAddItem <-
-          execute (fmap (\x ->
-                           FrameworksMoment
-                             (trimComponent =<<
-                              construct (ToDoItem x (setStatuses tdi))))
-                        addItemNow)
+          do setStatusesLater <-
+               trimE (setStatuses tdi)
+             execute (fmap (\x ->
+                              FrameworksMoment
+                                (do setStatuses' <- now setStatusesLater
+                                    trimComponent =<<
+                                      construct (ToDoItem x setStatuses')))
+                           addNonEmptyItem)
         openingStorage <-
           liftIO (fmap (fromMaybe []) Storage.retrieve)
         initialItems <-
@@ -65,7 +65,7 @@ instance Component ToDoList where
               accumE (map fst initialItems)
                      (unions [fmap append eAddItem
                              ,destroyItem
-                             ,fmap const (incompleteItems <@ clearCompletedNow)])
+                             ,fmap const (incompleteItems <@ clearCompleted tdi)])
             incompleteItems =
               switchB (pure (map fst (filter (((== Incomplete) . snd)) initialItems)))
                       (fmap (fmap (map snd .
@@ -94,7 +94,7 @@ instance Component ToDoList where
               liftA2 (\f ->
                         map fst .
                         (filter (f . snd)))
-                     statusFilterNow
+                     (statusFilter tdi)
                      items
             stableData =
               switchB (pure openingStorage)

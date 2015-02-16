@@ -11,7 +11,8 @@ import Francium.HTML
 import PureComponent
 import HoverObserver
 
-data ClearCompleted = ClearCompleted
+data ClearCompleted t =
+  ClearCompleted
 
 instance Component ClearCompleted where
   data Output behavior event

@@ -7,8 +7,8 @@ import Francium
 import Francium.Component
 import Francium.HTML hiding (a)
 
-data HoverObserver a =
-  HoverObserver a
+data HoverObserver a t =
+  HoverObserver (a t)
 
 instance Component a => Component (HoverObserver a) where
   data Output behavior event

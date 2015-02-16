@@ -4,10 +4,10 @@ module KeyPressObserver where
 
 import Francium
 import Francium.Component
-import Francium.HTML
+import Francium.HTML hiding (a, html)
 
-data KeyPressObserver a =
-  KeyPressObserver a
+data KeyPressObserver a t =
+  KeyPressObserver (a t)
 
 instance Component a => Component (KeyPressObserver a) where
   data Output b e

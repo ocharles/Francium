@@ -18,15 +18,18 @@ import TextInput
 -- | The 'NewItemAdder' component allows users to add new items to their to-do
 -- list. Visually, it appears as an <input> box, and fires the 'addItem' event
 -- when the user presses the return key on their keyboard.
-data NewItemAdder = NewItemAdder
+data NewItemAdder t =
+  NewItemAdder
 
 instance Component NewItemAdder where
   data Output behavior event NewItemAdder = NewItemOutput{addItem ::
                                                         event JSString}
   construct NewItemAdder =
-    mdo -- Pressing return should clear the input field, allowing the user to
+    mdo
+        -- Pressing return should clear the input field, allowing the user to
         -- add another to-do item.
-        clearOnReturn <- trimE (const "" <$ complete)
+        let clearOnReturn =
+              fmap (const (const "")) complete
         -- Construct an input field component, and transform this component
         -- with the 'KeyPressObserver' component transformer.
         inputComponent <-

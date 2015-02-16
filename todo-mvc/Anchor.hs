@@ -8,7 +8,8 @@ import Francium
 import Francium.Component
 import Francium.HTML
 
-data Anchor = Anchor { content :: [HTML]}
+data Anchor t =
+  Anchor {content :: [HTML]}
 
 instance Component Anchor where
   data Output behavior event Anchor = AnchorOutput{clicked ::

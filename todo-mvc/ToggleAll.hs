@@ -9,18 +9,18 @@ import Control.Monad (when)
 import Francium
 import Francium.Component
 import Francium.HTML
-import Reactive.Banana
 import ToDoItem (Status(..))
 
-data ToggleAll = ToggleAll { items :: AnyMoment Behavior [Status] }
+data ToggleAll t =
+  ToggleAll {items :: Behavior t [Status]}
 
 instance Component ToggleAll where
   data Output behavior event ToggleAll = ToggleAllOut{toggleUpdate ::
                                                     event Status}
   construct tAll =
-    do items' <- now (items tAll)
-       let allComplete =
-             fmap (all (== Complete)) items'
+    do let allComplete =
+             fmap (all (== Complete))
+                  (items tAll)
        toggle <- newDOMEvent
        return Instantiation {outputs =
                                ToggleAllOut

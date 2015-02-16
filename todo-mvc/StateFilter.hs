@@ -19,7 +19,8 @@ import Reactive.Banana
 import ToDoItem (Status(..))
 
 --------------------------------------------------------------------------------
-data StateFilter = StateFilter
+data StateFilter t =
+  StateFilter
 
 instance Component StateFilter where
   data Output behavior event
@@ -29,8 +30,8 @@ instance Component StateFilter where
     mdo stateFilters <-
           for [minBound .. maxBound]
               (\filter_ ->
-                 do active <-
-                      trimB (fmap (filter_ ==) currentState)
+                 do let active =
+                          fmap (filter_ ==) currentState
                     construct (FilterSelector {filterType = filter_
                                               ,isActive = active}))
         let currentState =
@@ -68,9 +69,9 @@ data Filter
   | Completed
   deriving (Bounded,Enum,Eq,Ord,Show)
 
-data FilterSelector =
+data FilterSelector t =
   FilterSelector {filterType :: Filter
-                 ,isActive :: AnyMoment Behavior Bool}
+                 ,isActive :: Behavior t Bool}
 
 data FilterSelectorState
   = Selected
@@ -83,7 +84,6 @@ instance Component FilterSelector where
   construct fc =
     do baseAnchor <-
          construct (HoverObserver (Anchor [text (show (filterType fc))]))
-       isActive' <- now (isActive fc)
        let selectionState =
              liftA2 (\isHovering isSelected ->
                        if isSelected
@@ -92,7 +92,7 @@ instance Component FilterSelector where
                                   then Hover
                                   else NoSelection)
                     (isHovered (outputs baseAnchor))
-                    isActive'
+                    (isActive fc)
        return Instantiation {outputs =
                                FilterOutput {filterClicked =
                                                filterType fc <$

@@ -14,7 +14,7 @@ import Control.Monad.Trans.State.Strict (execState)
 import Data.Bool (bool)
 import Francium
 import Francium.Component
-import Francium.HTML
+import Francium.HTML hiding (b)
 import GHC.Generics
 import GHCJS.Foreign
 import GHCJS.Types
@@ -41,9 +41,9 @@ instance TrimOutput ToDoItem
 data State = Viewing | Editing deriving (Eq)
 
 --------------------------------------------------------------------------------
-data ToDoItem =
+data ToDoItem t =
   ToDoItem {initialContent :: JSString
-           ,setStatus :: AnyMoment Event Status}
+           ,setStatus :: Event t Status}
 
 instance Component ToDoItem where
   data Output behavior event ToDoItem = ToDoItemOutput{status ::
@@ -54,17 +54,15 @@ instance Component ToDoItem where
     do container <-
          construct (HoverObserver (PureComponent div))
        textInput <-
-         do never' <- trimE never
-            construct (TrackFocus (KeyPressObserver (TextInput (initialContent toDoItem) never')))
+         construct (TrackFocus (KeyPressObserver (TextInput (initialContent toDoItem) never)))
        destroyButton <-
          construct (Button ["\215"])
-       setStatus' <- now (setStatus toDoItem)
        statusCheckbox <-
-         do toggle <-
-              trimE (fmap (\case
-                             Incomplete -> False
-                             Complete -> True)
-                          setStatus')
+         do let toggle =
+                  fmap (\case
+                          Incomplete -> False
+                          Complete -> True)
+                       (setStatus toDoItem)
             construct (ToDoCheckbox toggle)
        click <- newDOMEvent
        let switchToEditing =
@@ -81,12 +79,6 @@ instance Component ToDoItem where
                              switchToEditing
                             ,const Viewing <$
                              switchToViewing])
-           status =
-             accumB Incomplete
-                    (unions [fmap (\b _ ->
-                                     bool Incomplete Complete b)
-                                  (toggled (outputs statusCheckbox))
-                            ,const <$> setStatus'])
            showDestroy =
              liftA2 (&&)
                     (fmap (Viewing ==) state)
@@ -96,19 +88,28 @@ instance Component ToDoItem where
            selfDestruct =
              unions [clicked (outputs destroyButton)
                     ,whenE (fmap isEmptyString itemValue) switchToViewing]
-       return (Instantiation {render = itemRenderer click <$>
-                                       render destroyButton <*>
-                                       render statusCheckbox <*>
-                                       render container <*> showDestroy <*>
-                                       state <*> render textInput <*> itemValue <*>
-                                       status
-                             ,outputs =
-                                ToDoItemOutput
-                                  status
-                                  selfDestruct
-                                  (stepper (initialContent toDoItem)
-                                           (itemValue <@ switchToViewing))})
-    where itemRenderer labelClick destroy statusCheckbox container showDestroy state textInput inputValue status =
+           self =
+             Instantiation {render =
+                              itemRenderer click <$> render destroyButton <*>
+                              render statusCheckbox <*> render container <*>
+                              showDestroy <*> state <*> render textInput <*>
+                              itemValue <*>
+                              (status (outputs self))
+                           ,outputs =
+                              ToDoItemOutput {status =
+                                                accumB Incomplete
+                                                       (unions [fmap (\b _ ->
+                                                                        bool Incomplete Complete b)
+                                                                     (toggled (outputs statusCheckbox))
+                                                               ,const <$>
+                                                                (setStatus toDoItem)])
+                                             ,destroy = selfDestruct
+                                             ,steppedContent =
+                                                stepper (initialContent toDoItem)
+                                                        (itemValue <@
+                                                         switchToViewing)}}
+       return self
+    where itemRenderer labelClick destroyButton statusCheckbox container showDestroy state textInput inputValue currentStatus =
             let svgCheckbox =
                   case state of
                     Viewing ->
@@ -122,7 +123,7 @@ instance Component ToDoItem where
                                 attrs .
                                   at "viewBox" ?=
                                   "-10 -18 100 135")
-                            (case status of
+                            (case currentStatus of
                                Complete ->
                                  [checkCircle
                                  ,with path
@@ -140,7 +141,7 @@ instance Component ToDoItem where
                   case state of
                     Viewing ->
                       [with label
-                            (do case status of
+                            (do case currentStatus of
                                   Incomplete -> labelStyle
                                   Complete -> completeLabelStyle
                                 onClick labelClick)
@@ -148,7 +149,7 @@ instance Component ToDoItem where
                       ,execState (if showDestroy
                                      then buttonStyle
                                      else hiddenButtonStyle)
-                                 destroy]
+                                 destroyButton]
                     Editing ->
                       [execState (do inputStyle
                                      takesFocus)
@@ -212,16 +213,15 @@ instance Component ToDoItem where
             null (fromJSString x :: String)
 
 --------------------------------------------------------------------------------
-data ToDoCheckbox = ToDoCheckbox { reset :: AnyMoment Event Bool }
+data ToDoCheckbox t = ToDoCheckbox { reset :: Event t Bool }
 
 instance Component ToDoCheckbox where
   data Output behavior event
        ToDoCheckbox = ToDoCheckboxOutput{toggled :: event Bool}
   construct c =
     do click <- newDOMEvent
-       reset' <- now (reset c)
        let toggled_ =
-             accumE False (unions [not <$ domEvent click,const <$> reset'])
+             accumE False (unions [not <$ domEvent click,const <$> reset c])
            isChecked = stepper False toggled_
        return Instantiation {outputs =
                                ToDoCheckboxOutput toggled_
@@ -241,11 +241,11 @@ instance Component ToDoCheckbox where
                                     isChecked}
 
 --------------------------------------------------------------------------------
-data Button = Button [HTML]
+data Button t = Button [HTML]
 
 instance Component Button where
   data Output behavior event Button = ButtonOutput { clicked :: event () }
-  construct (Button content) = do
+  construct (Button buttonLabel) = do
     click <- newDOMEvent
     return Instantiation { outputs = ButtonOutput (domEvent click)
-                         , render = pure (with button (onClick click) content)}
+                         , render = pure (with button (onClick click) buttonLabel)}
