@@ -1,25 +1,19 @@
 {-# LANGUAGE RecursiveDo #-}
 {-# LANGUAGE OverloadedStrings #-}
 
+import ToDoList
 import ClearCompleted
-import Control.Arrow
 import Control.Lens ((?=), at)
 import Control.Monad
 import Francium
 import Francium.Component
 import Francium.HTML hiding (map)
-import GHCJS.Foreign
-import GHCJS.Types
 import NewItemAdder
 import Prelude hiding (div, span)
 import Reactive.Banana
 import StateFilter
 import ToDoItem
 import ToggleAll
-import Data.Maybe 
-import Data.Traversable
-import qualified Francium.HTML as HTML
-import qualified Storage
 
 main :: IO ()
 main =
@@ -29,109 +23,33 @@ main =
                construct ClearCompleted
              toggleAll <-
                do statuses <-
-                    trimB (fmap (map snd) items)
+                    trimB (allItems (outputs toDoList))
                   construct (ToggleAll statuses)
              setStatus <-
                trimE (toggleUpdate (outputs toggleAll))
-             eAddItem <-
-               execute (fmap (\x ->
-                                FrameworksMoment
-                                  (trimComponent =<<
-                                   construct (ToDoItem x setStatus)))
-                             (filterE (not . isEmptyString . fromJSString)
-                                      (addItem (outputs itemAdder))))
-             openingStorage <-
-               liftIO (fmap (fromMaybe []) Storage.retrieve)
-             initialItems <-
-               for openingStorage
-                   (\item ->
-                      do component <-
-                           trimComponent =<<
-                           construct (ToDoItem (toJSString (Storage.title item)) setStatus)
-                         return (component
-                                ,(if Storage.complete item
-                                     then Complete
-                                     else Incomplete)))
-             startingView <-
-               fmap sequenceA
-                    (for initialItems
-                         (\(item,_) ->
-                            do render_ <-
-                                 now (render item)
-                               status_ <-
-                                 now (status (outputs item))
-                               return (liftA2 (,) render_ status_)))
-             let eItemsChanged =
-                   accumE (map fst initialItems)
-                          (unions [fmap append eAddItem
-                                  ,destroy
-                                  ,fmap const
-                                        (incompleteItems <@
-                                         ClearCompleted.clearCompleted (outputs clearCompleted))])
-                 incompleteItems =
-                   switchB (pure (map fst (filter (((== Incomplete) . snd)) initialItems)))
-                           (fmap (fmap (map snd .
-                                        filter ((== Incomplete) . fst)))
-                                 (fmap (sequenceA .
-                                        map (\item ->
-                                               fmap (id &&& const item)
-                                                    (status (outputs item))))
-                                       eItemsChanged))
-                 openItemCount =
+             toDoList <-
+               do addItemLater <-
+                    trimE (NewItemAdder.addItem (outputs itemAdder))
+                  clearCompletedLater <-
+                    trimE (ClearCompleted.clearCompleted (outputs clearCompleted))
+                  stateFilterFLater <-
+                    trimB (StateFilter.stateFilterF (outputs stateFilter))
+                  construct (ToDoList {ToDoList.addItem = addItemLater
+                                      ,ToDoList.clearCompleted = clearCompletedLater
+                                      ,statusFilter = stateFilterFLater
+                                      ,setStatuses = setStatus})
+             let openItemCount =
                    fmap (length .
-                         filter (== Incomplete) .
-                         map snd)
-                        items
-                 items =
-                   switchB startingView
-                           (fmap (sequenceA .
-                                  fmap (\item ->
-                                          liftA2 (,)
-                                                 (render item)
-                                                 (status (outputs item))))
-                                 eItemsChanged)
-                 destroy =
-                   switchE (fmap (\events ->
-                                    anyMoment (fmap (unions .
-                                                     (zipWith (\i -> (deleteElem i <$))
-                                                              [0 ..]))
-                                                    (mapM now events)))
-                                 (fmap (map (ToDoItem.destroy . outputs)) eItemsChanged))
-                 visibleItems =
-                   liftA2 (\f ->
-                             map fst .
-                             (filter (f . snd)))
-                          (stateFilterF (outputs stateFilter))
-                          items
-                 stableData =
-                   switchB (pure openingStorage)
-                           (fmap (traverse (\item ->
-                                              liftA2 Storage.ToDoItem
-                                                     (fmap fromJSString
-                                                           (steppedContent (outputs item)))
-                                                     (fmap (== Complete) (status (outputs item)))))
-                                 eItemsChanged)
-             stableDataChanged <- changes stableData
-             reactimate' (fmap (fmap Storage.store) stableDataChanged)
+                         filter (== Incomplete))
+                        (allItems (outputs toDoList))
              return (fmap appView
-                          (TodoApp <$> render itemAdder <*> visibleItems <*>
-                           openItemCount <*> render stateFilter <*>
-                           fmap void items <*>
+                          (TodoApp <$> render itemAdder <*> render toDoList <*>
+                           fmap (not . null)
+                                (allItems (outputs toDoList)) <*>
+                           render stateFilter <*>
+                           openItemCount <*>
                            render clearCompleted <*>
                            render toggleAll)))
-  where append x xs =
-          xs ++
-          [x]
-        isEmptyString x =
-          null (fromJSString x :: String)
-
-deleteElem :: Int -> [a] -> [a]
-deleteElem i [] = []
-deleteElem i (x:xs)
-  | i < 0 = xs
-  | i > length xs = xs
-  | i == 0 = xs
-  | otherwise = x : deleteElem (i - 1) xs
 
 mainContainer :: HTML
 mainContainer =
@@ -149,45 +67,8 @@ pageTitle =
              "text-rendering: optimizelegibility; color: rgba(175, 47, 47, 0.14902); text-align: center; font-weight: 100; font-size: 100px; width: 100%; top: -155px; position: absolute;")
        ["todos"]
 
-toDoContainer :: HTML
-toDoContainer =
-  with ul
-       (do attrs .
-             at "style" ?=
-             "list-style-type: none; padding: 0px; margin: 0px;")
-       []
-
-completeToDo :: HTML
-completeToDo =
-  with li
-       (do attrs .
-             at "style" ?=
-             "border-bottom-color: rgb(237, 237, 237); border-bottom-style: solid; border-bottom-width: 1px; font-size: 24px; position: relative;")
-       [into div
-             [with input
-                   (do attrs .
-                         at "style" ?=
-                         "outline-style: none; -webkit-appearance: none; border-style: none; margin: auto 0px; bottom: 0px; top: 0px; position: absolute; height: 40px; width: 40px; text-align: center; background-image: none;"
-                       attrs .
-                         at "type" ?=
-                         "checkbox"
-                       attrs .
-                         at "checked" ?=
-                         "")
-                   []
-             ,with label
-                   (do attrs .
-                         at "style" ?=
-                         "-webkit-transition: color 0.4s initial initial; transition: color 0.4s initial initial; line-height: 1.2; display: block; margin-left: 45px; padding: 15px 60px 15px 15px; word-break: break-word; white-space: pre; text-decoration-line: line-through; color: rgb(217, 217, 217);")
-                   ["Taste JavaScript"]
-             ,with button
-                   (do attrs .
-                         at "style" ?=
-                         "-webkit-font-smoothing: antialiased; -webkit-appearance: none; vertical-align: baseline; font-size: 30px; border-width: 0px; padding: 0px; margin: auto 0px 11px; outline-style: none; -webkit-transition: color 0.2s ease-out initial; transition: color 0.2s ease-out initial; color: rgb(204, 154, 154); height: 40px; width: 40px; bottom: 0px; right: 10px; top: 0px; position: absolute; display: none; background-image: none;")
-                   []]]
-
 toDoSummary :: Int -> HTML -> HTML -> HTML
-toDoSummary n stateFilter clearCompleted =
+toDoSummary n stateFilter clearCompletedButton =
   with footer
        (do attrs .
              at "style" ?=
@@ -212,7 +93,7 @@ toDoSummary n stateFilter clearCompleted =
                  else "items"
              ," left"]
        ,stateFilter
-       ,clearCompleted
+       ,clearCompletedButton
        ,with button
              (do attrs .
                    at "style" ?=
@@ -272,28 +153,29 @@ pageFooter =
 
 data TodoApp =
   TodoApp {taAddANewItem :: HTML
-          ,taItems :: [HTML]
-          ,taOpenItemCount :: Int
+          ,taToDoList :: HTML
+          ,taHasItems :: Bool
           ,taStateFilter :: HTML
-          ,taAllItems :: [()]
-          ,taClearCompleted :: HTML, taToggleAll :: HTML}
+          ,taOpenItemCount :: Int
+          ,taClearCompleted :: HTML
+          ,taToggleAll :: HTML}
 
 appView :: TodoApp -> HTML
-appView (TodoApp addANewItem items openItemCount stateFilter allItems clearCompleted toggleAll) =
+appView components =
   into mainContainer
        [with section
              (attrs .
               at "style" ?=
               "box-shadow: rgba(0, 0, 0, 0.2) 0px 2px 4px 0px, rgba(0, 0, 0, 0.0980392) 0px 25px 50px 0px; position: relative; margin: 130px 0px 40px; background-color: rgb(255, 255, 255);")
-             (into header [pageTitle,addANewItem] :
-              case allItems of
-                [] -> []
-                _ ->
+             (into header [pageTitle,taAddANewItem components] :
+              case taHasItems components of
+                False -> []
+                True ->
                   [with section
                         (do attrs .
                               at "style" ?=
                               "border-top-color: rgb(230, 230, 230); border-top-style: solid; border-top-width: 1px; z-index: 2; position: relative;")
-                        [toggleAll
+                        [taToggleAll components
                         ,with label
                               (do attrs .
                                     at "style" ?=
@@ -302,17 +184,13 @@ appView (TodoApp addANewItem items openItemCount stateFilter allItems clearCompl
                                     at "for" ?=
                                     "toggle-all")
                               ["Mark all as complete"]
-                        ,into toDoContainer (map (into itemContainer . pure) items)]
-                  ,toDoSummary openItemCount stateFilter clearCompleted])
+                        ,taToDoList components]
+                  ,toDoSummary (taOpenItemCount components)
+                               (taStateFilter components)
+                               (taClearCompleted components)])
        ,pageFooter
        ,with div
              (do attrs .
                    at "style" ?=
                    "z-index: 2147483646; width: auto; white-space: normal; vertical-align: baseline; top: auto; text-transform: none; text-shadow: rgb(255, 255, 255) 0px 1px 2px; text-indent: 0px; text-decoration-line: none; text-align: left; right: 150px; position: fixed; padding: 3px 3px 2px; opacity: 0; min-width: 150px; min-height: 13px; max-width: 400px; max-height: none; margin: 0px; line-height: 1; letter-spacing: 0px; left: auto; height: 13px; font-weight: normal; font-variant: normal; font-style: normal; font-family: 'Lucida Grande', Arial, Sans; float: none; display: none; cursor: auto; color: black; box-shadow: none; bottom: 0px; border: 1px solid rgb(179, 179, 179); font-size: 12px; border-radius: 4px 4px 0px 0px; background-image: none; background-color: rgb(235, 235, 235);")
              []]
-  where itemContainer =
-          with li
-               (attrs .
-                at "style" ?=
-                "border-bottom-color: rgb(237, 237, 237); border-bottom-style: none; border-bottom-width: 1px; font-size: 24px; position: relative;")
-               []

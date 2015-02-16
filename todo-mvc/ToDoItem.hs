@@ -163,7 +163,7 @@ instance Component ToDoItem where
           checkboxStyle =
             attrs .
             at "style" ?=
-            "text-align: center; width: 40px; height: auto; position: absolute; top: 0; bottom: 0; margin: auto 0; border: none; -webkit-appearance: none; -ms-appearance: none; appearance: none;"
+            "text-align: center; width: 40px; height: auto; position: absolute; top: 0; bottom: 0; margin: auto 0; border: none;"
           labelStyle =
             attrs .
             at "style" ?=
