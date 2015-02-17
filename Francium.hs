@@ -95,7 +95,7 @@ data DOMDelegator
 #ifndef HLINT
 
 foreign import javascript unsafe
-  "console.log('Initializing dom-delegator'); var dd = DOMDelegator(); dd.listenTo('mouseover'); dd.listenTo('mouseout'); $r = dd;"
+  "console.log('Initializing dom-delegator'); var dd = DOMDelegator(); dd.listenTo('mouseenter'); dd.listenTo('mouseleave'); $r = dd;"
   initDomDelegator :: IO (JSRef DOMDelegator)
 
 #endif

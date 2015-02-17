@@ -1,5 +1,5 @@
-{-# LANGUAGE RecursiveDo #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecursiveDo #-}
 {-# LANGUAGE TypeFamilies #-}
 
 module NewItemAdder (NewItemAdder(..), addItem) where
@@ -26,37 +26,54 @@ instance Component NewItemAdder where
   data Output behavior event NewItemAdder = NewItemOutput{addItem ::
                                                         event JSString}
   construct NewItemAdder =
-    mdo -- Pressing return should clear the input field, allowing the user to
-        -- add another to-do item.
-        let clearOnReturn =
-              fmap (const (const "")) complete
+    mdo
         -- Construct an input field component, and transform this component
         -- with the 'KeyPressObserver' component transformer.
         inputComponent <-
           construct (KeyPressObserver
                        (TextInput {initialText = ""
-                                  ,updateText = clearOnReturn}))
-        let itemValue =
+                                  ,updateText =
+                                     fmap (const (const "")) returnPressed}))
+        let
+            -- The 'KeyPressObserver' gives us an event whenever a key is pressed.
+            -- We only need to know when the user presses return, so we filter
+            -- the event stream accordingly.
+            returnPressed =
+              listenForReturn (keyPressed (outputs inputComponent))
+            -- The itemValue is the title of the to-do item being added. We
+            -- pass through the behavior from the TextInput component, which
+            -- provides us with the contents of the text box.
+            itemValue =
               TextInput.value (passThrough (outputs inputComponent))
-            returnKeyCode = 13
-            complete =
-              filterE (== returnKeyCode) (keyPressed (outputs inputComponent))
         return Instantiation {render =
+                                -- To render the component, we simply reskin the
+                                -- TextInput component
                                 fmap (execState inputAttributes)
                                      (render inputComponent)
                              ,outputs =
-                                NewItemOutput {addItem = itemValue <@ complete}}
+                                -- The outputs of this component is an Event
+                                -- that samples the contents of the input field
+                                -- whenever return is pressed.
+                                NewItemOutput {addItem = itemValue <@
+                                                         returnPressed}}
     where inputAttributes =
             do style .=
                  (do boxSizing borderBox
-                     insetBoxShadow inset (px 0) (px (-2)) (px 1) (rgba 0 0 0 7)
+                     insetBoxShadow inset
+                                    (px 0)
+                                    (px (-2))
+                                    (px 1)
+                                    (rgba 0 0 0 7)
                      borderStyle none
-                     padding (px 15) (px 15) (px 15) (px 60)
+                     padding (px 15)
+                             (px 15)
+                             (px 15)
+                             (px 60)
                      outlineStyle none
                      lineHeight (em 1.5)
                      fontSize (px 24)
                      width (pct 100)
-                     margin (px 0) (px 0) (px 0) (px 0)
+                     sym margin (px 0)
                      position relative
                      backgroundColor (rgba 0 0 0 0))
                attrs .
@@ -65,3 +82,7 @@ instance Component NewItemAdder where
                attrs .
                  at "autofocus" ?=
                  ""
+
+listenForReturn :: (Num a, Eq a) => Event t a -> Event t a
+listenForReturn = filterE (== returnKeyCode)
+  where returnKeyCode = 13
