@@ -3,9 +3,16 @@
 
 module ToggleAll where
 
-import Data.Bool
-import Control.Lens (at, (?=))
+import Clay.Background
+import Clay.Border
+import Clay.Common as Css hiding (all)
+import Clay.Display
+import Clay.Geometry
+import Clay.Size
+import Clay.Text
+import Control.Lens (at, (?=), (.=))
 import Control.Monad (when)
+import Data.Bool
 import Francium
 import Francium.Component
 import Francium.HTML
@@ -32,9 +39,16 @@ instance Component ToggleAll where
                                             (do attrs .
                                                   at "type" ?=
                                                   "checkbox"
-                                                attrs .
-                                                  at "style" ?=
-                                                  "outline-style: none; border-style: none; text-align: center; height: 34px; width: 60px; left: -12px; top: -55px; position: absolute; background-image: none;"
+                                                style .=
+                                                  do outlineStyle none
+                                                     borderStyle none
+                                                     textAlign (other "center")
+                                                     height (px 34)
+                                                     width (px 60)
+                                                     left (px (-12))
+                                                     top (px (-55))
+                                                     position absolute
+                                                     backgroundImage none
                                                 onClick toggle
                                                 when c
                                                      (attrs .

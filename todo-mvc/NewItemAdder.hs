@@ -4,11 +4,12 @@
 
 module NewItemAdder (NewItemAdder(..), addItem) where
 
-import Control.Lens ((?=), at)
+import Clay as CSS hiding (render, style)
+import Control.Lens ((?=), (.=), at)
 import Control.Monad.Trans.State.Strict (execState)
 import Francium
 import Francium.Component
-import Francium.HTML (attrs)
+import Francium.HTML (attrs, style)
 import GHCJS.Types
 import KeyPressObserver
 import Prelude hiding (div, span)
@@ -25,8 +26,7 @@ instance Component NewItemAdder where
   data Output behavior event NewItemAdder = NewItemOutput{addItem ::
                                                         event JSString}
   construct NewItemAdder =
-    mdo
-        -- Pressing return should clear the input field, allowing the user to
+    mdo -- Pressing return should clear the input field, allowing the user to
         -- add another to-do item.
         let clearOnReturn =
               fmap (const (const "")) complete
@@ -47,9 +47,18 @@ instance Component NewItemAdder where
                              ,outputs =
                                 NewItemOutput {addItem = itemValue <@ complete}}
     where inputAttributes =
-            do attrs .
-                 at "style" ?=
-                 "-webkit-font-smoothing: antialiased; box-sizing: border-box; box-shadow: rgba(0, 0, 0, 0.027451) 0px -2px 1px inset; border: 1px none rgb(153, 153, 153); padding: 16px 16px 16px 60px; outline-style: none; line-height: 1.4em; font-size: 24px; width: 100%; margin: 0px; position: relative; background-color: rgba(0, 0, 0, 0);"
+            do style .=
+                 (do boxSizing borderBox
+                     insetBoxShadow inset (px 0) (px (-2)) (px 1) (rgba 0 0 0 7)
+                     borderStyle none
+                     padding (px 15) (px 15) (px 15) (px 60)
+                     outlineStyle none
+                     lineHeight (em 1.5)
+                     fontSize (px 24)
+                     width (pct 100)
+                     margin (px 0) (px 0) (px 0) (px 0)
+                     position relative
+                     backgroundColor (rgba 0 0 0 0))
                attrs .
                  at "placeholder" ?=
                  "What needs to be done?"

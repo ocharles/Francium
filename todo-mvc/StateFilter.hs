@@ -7,7 +7,16 @@
 module StateFilter (StateFilter(..), stateFilterF) where
 
 import Anchor
-import Control.Lens ((?=), at)
+import Clay.Common
+import Clay.Size
+import Clay.Color
+import Clay.Display
+import Clay.Geometry
+import Clay.Border
+import Clay.Text
+import Clay.Font
+import Clay.List
+import Control.Lens ((.=))
 import Control.Monad.Trans.State.Strict (execState)
 import Data.Traversable (for)
 import Francium
@@ -50,16 +59,22 @@ instance Component StateFilter where
                                         currentState)}
     where container =
             with ul
-                 (attrs .
-                  at "style" ?=
-                  "left: 0px; right: 0px; position: absolute; list-style-type: none; padding: 0px; margin: 0px;")
+                 (style .=
+                  do left (px 0)
+                     right (px 0)
+                     position absolute
+                     listStyleType none
+                     padding (px 0)
+                             (px 0)
+                             (px 0)
+                             (px 0)
+                     margin (px 0)
+                            (px 0)
+                            (px 0)
+                            (px 0))
                  []
           selectorCell =
-            with li
-                 (attrs .
-                  at "style" ?=
-                  "display: inline;")
-                 []
+            with li (style .= display inline) []
           initialState = All
 
 --------------------------------------------------------------------------------
@@ -100,16 +115,23 @@ instance Component FilterSelector where
                             ,render =
                                liftA2 renderStateSelector selectionState (render baseAnchor)}
     where renderStateSelector selectionState =
-            execState (case selectionState of
-                         NoSelection ->
-                           attrs .
-                           at "style" ?=
-                           "border: 1px solid transparent; text-decoration-line: none; padding: 3px 7px; margin: 3px; color: inherit"
-                         Hover ->
-                           attrs .
-                           at "style" ?=
-                           "border: 1px solid rgba(175, 47, 47, 0.1); border-radius: 3px; text-decoration-line: none; padding: 3px 7px; margin: 3px; color: inherit"
-                         Selected ->
-                           attrs .
-                           at "style" ?=
-                           "border: 1px solid rgba(175, 47, 47, 0.2); border-radius: 3px; text-decoration-line: none; padding: 3px 7px; margin: 3px; color: inherit")
+            execState (style .=
+                       do borderWidth (px 1)
+                          borderStyle solid
+                          textDecorationLine none
+                          padding (px 3)
+                                  (px 7)
+                                  (px 3)
+                                  (px 7)
+                          margin (px 3)
+                                 (px 3)
+                                 (px 3)
+                                 (px 3)
+                          color inherit
+                          borderColor
+                            (case selectionState of
+                               NoSelection -> transparent
+                               Hover ->
+                                 rgba 175 47 47 26
+                               Selected ->
+                                 rgba 175 47 47 51))

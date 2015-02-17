@@ -3,13 +3,17 @@
 
 module ClearCompleted where
 
-import Control.Lens ((?=), at)
-import Control.Monad.Trans.State.Strict (execState)
+import Clay.Common
+import Clay.Display
+import Clay.Font
+import Clay.Size
+import Clay.Text
+import Control.Lens ((.=))
 import Francium
 import Francium.Component
-import Francium.HTML
-import PureComponent
+import Francium.HTML hiding (b, html)
 import HoverObserver
+import PureComponent
 
 data ClearCompleted t =
   ClearCompleted
@@ -26,9 +30,12 @@ instance Component ClearCompleted where
                             ,render =
                                liftA2 (\h html ->
                                          with html
-                                              (do attrs .
-                                                    at "style" ?=
-                                                    "float: right; position: relative; line-height: 20px; text-decoration: none; cursor: pointer; position: relative;"
+                                              (do style .=
+                                                    (do float floatRight
+                                                        position relative
+                                                        lineHeight (px 20)
+                                                        textDecoration none
+                                                        cursor pointer)
                                                   onClick click)
                                               ["Clear Completed"])
                                       (isHovered (outputs b))

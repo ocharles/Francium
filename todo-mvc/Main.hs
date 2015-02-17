@@ -3,9 +3,8 @@
 
 import ToDoList
 import ClearCompleted
-import Control.Lens ((?=), (%=), at)
+import Control.Lens ((?=), (.=), at)
 import Control.Monad
-import Control.Monad.Trans.State.Strict (execState)
 import Francium
 import Francium.Component
 import Francium.HTML hiding (map)
@@ -14,7 +13,14 @@ import Prelude hiding (div, span)
 import StateFilter
 import ToDoItem
 import ToggleAll
-import Francium.CSS
+import Clay.Box
+import Clay.Size
+import Clay.Color
+import Clay.Display
+import Clay.Geometry
+import Clay.Border
+import Clay.Background
+import Clay.Common
 
 main :: IO ()
 main =
@@ -159,29 +165,28 @@ appView :: TodoApp -> HTML
 appView components =
   into mainContainer
        [with section
-             (style %=
-              execState (do boxShadows [(px 0,px 2,px 4,px 0,rgba 0 0 0 51)]
-                            position relative
-                            margin (px 130)
-                                   (px 0)
-                                   (px 40)
-                                   (px 0)
-                            backgroundColor (rgb 255 255 255)))
+             (style .=
+              do boxShadows [(px 0,px 2,px 4,rgba 0 0 0 51)]
+                 position relative
+                 margin (px 130)
+                        (px 0)
+                        (px 40)
+                        (px 0)
+                 backgroundColor (rgb 255 255 255))
              (into header [pageTitle,taAddANewItem components] :
               case taHasItems components of
                 False -> []
                 True ->
                   [with section
-                        (style %=
-                         execState (do borderTop solid
-                                                 (px 1)
-                                                 (rgb 230 230 230)
-                                       zIndex 2
-                                       position relative))
+                        (style .=
+                         do borderTop solid
+                                      (px 1)
+                                      (rgb 230 230 230)
+                            zIndex 2
+                            position relative)
                         [taToggleAll components
                         ,with label
-                              (do style %=
-                                    execState (display none)
+                              (do style .= display none
                                   attrs .
                                     at "for" ?=
                                     "toggle-all")

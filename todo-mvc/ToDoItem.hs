@@ -8,13 +8,26 @@
 
 module ToDoItem where
 
+import Clay ((-:))
+import Clay.Time
+import Clay.Background
+import Clay.Border
+import Clay.Box
+import Clay.Color
+import Clay.Transition
+import Clay.Common as Css
+import Clay.Display
+import Clay.Text
+import Clay.Font
+import Clay.Geometry
+import Clay.Size
 import Control.Lens ((?=), (.=), at)
 import Control.Monad (void)
 import Control.Monad.Trans.State.Strict (execState)
 import Data.Bool (bool)
 import Francium
 import Francium.Component
-import Francium.HTML hiding (b)
+import Francium.HTML hiding (b, em, pre)
 import GHC.Generics
 import GHCJS.Foreign
 import GHCJS.Types
@@ -158,29 +171,125 @@ instance Component ToDoItem where
                     (execState checkboxStyle statusCheckbox :
                      items)
           inputStyle =
-            attrs .
-            at "style" ?=
-            "-webkit-font-smoothing: antialiased; box-sizing: border-box; box-shadow: rgba(0, 0, 0, 0.2) 0px -1px 5px 0px inset; border: 1px solid rgb(153, 153, 153); padding: 13px 17px 12px 17px; outline-style: none; line-height: 1.4em; font-size: 24px; width: 506px; margin: 0 0 0 43px; position: relative;"
+            style .=
+            do boxSizing borderBox
+               insetBoxShadow inset
+                              (px 0)
+                              (px (-1))
+                              (px 5)
+                              (rgba 0 0 0 51)
+               borderWidth (px 1)
+               borderStyle solid
+               borderColor (rgb 153 153 153)
+               padding (px 13)
+                       (px 17)
+                       (px 12)
+                       (px 17)
+               outlineStyle none
+               lineHeight (em 1.4)
+               fontSize (px 24)
+               width (px 506)
+               margin (px 0)
+                      (px 0)
+                      (px 0)
+                      (px 43)
+               position relative
           checkboxStyle =
-            attrs .
-            at "style" ?=
-            "text-align: center; width: 40px; height: auto; position: absolute; top: 0; bottom: 0; margin: auto 0; border: none;"
+            style .=
+            do textAlign (other "centre")
+               width (px 40)
+               height auto
+               position absolute
+               top (px 0)
+               bottom (px 0)
+               margin auto
+                      (px 0)
+                      auto
+                      (px 0)
+               borderStyle none
           labelStyle =
-            attrs .
-            at "style" ?=
-            "-webkit-transition: color 0.4s; transition: color 0.4s; line-height: 1.2; display: block; margin-left: 45px; padding: 15px 60px 15px 15px; word-break: break-word; white-space: pre;"
+            style .=
+            do transition "color"
+                          (sec 0.4)
+                          auto
+                          auto
+               lineHeight (1.2 :: Size Rel)
+               display block
+               marginLeft (px 45)
+               padding (px 15)
+                       (px 60)
+                       (px 15)
+                       (px 15)
+               "word-break" -: "break-word"
+               whiteSpace pre
           completeLabelStyle =
-            attrs .
-            at "style" ?=
-            "-webkit-transition: color 0.4s; transition: color 0.4s; line-height: 1.2; display: block; margin-left: 45px; padding: 15px 60px 15px 15px; word-break: break-word; white-space: pre; color: #d9d9d9; text-decoration: line-through;"
+            style .=
+            do transition "color"
+                          (sec 0.4)
+                          auto
+                          auto
+               lineHeight (1.2 :: Size Rel)
+               display block
+               marginLeft (px 45)
+               padding (px 15)
+                       (px 60)
+                       (px 15)
+                       (px 15)
+               "word-break" -: "break-word"
+               whiteSpace pre
+               color (rgb 217 217 217)
+               textDecoration lineThrough
           buttonStyle =
-            attrs .
-            at "style" ?=
-            "-webkit-font-smoothing: antialiased; vertical-align: baseline; font-size: 30px; border-width: 0px; padding: 0px; margin: auto 0px 11px; outline-style: none; -webkit-transition: color 0.2s ease-out initial; transition: color 0.2s ease-out initial; color: rgb(204, 154, 154); height: 40px; width: 40px; bottom: 0px; right: 10px; top: 0px; position: absolute; display: block; background-image: none; background-color: inherit;"
+            style .=
+            do verticalAlign baseline
+               fontSize (px 30)
+               borderWidth (px 0)
+               sym padding (px 0)
+               sym3 margin
+                    auto
+                    (px 0)
+                    (px 11)
+               outlineStyle none
+               transition "color"
+                          (sec 0.2)
+                          easeOut
+                          (sec 0)
+               color (rgb 204 154 154)
+               height (px 40)
+               width (px 40)
+               bottom (px 0)
+               right (px 10)
+               top (px 0)
+               position absolute
+               display block
+               backgroundImage none
+               backgroundColor inherit
           hiddenButtonStyle =
-            attrs .
-            at "style" ?=
-            "-webkit-font-smoothing: antialiased; vertical-align: baseline; font-size: 30px; border-width: 0px; padding: 0px; margin: auto 0px 11px; outline-style: none; -webkit-transition: color 0.2s ease-out initial; transition: color 0.2s ease-out initial; color: rgb(204, 154, 154); height: 40px; width: 40px; bottom: 0px; right: 10px; top: 0px; position: absolute; display: block; background-image: none; background-color: inherit; display: none;"
+            style .=
+            do verticalAlign baseline
+               fontSize (px 30)
+               borderWidth (px 0)
+               sym padding (px 0)
+               sym3 margin
+                    auto
+                    (px 0)
+                    (px 11)
+               outlineStyle none
+               transition "color"
+                          (sec 0.2)
+                          easeOut
+                          (sec 0)
+               color (rgb 204 154 154)
+               height (px 40)
+               width (px 40)
+               bottom (px 0)
+               right (px 10)
+               top (px 0)
+               position absolute
+               display block
+               backgroundImage none
+               backgroundColor inherit
+               display none
           checkCircle =
             with circle
                  (do attrs .

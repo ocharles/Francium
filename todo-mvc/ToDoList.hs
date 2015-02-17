@@ -4,8 +4,16 @@
 
 module ToDoList where
 
+import Clay.Border
+import Clay.Color
+import Clay.Common as Css
+import Clay.Display
+import Clay.Font
+import Clay.Geometry
+import Clay.List
+import Clay.Size
 import Control.Arrow ((&&&))
-import Control.Lens ((?=), at)
+import Control.Lens ((.=))
 import Data.Maybe
 import Data.Traversable (for)
 import Francium
@@ -116,17 +124,21 @@ instance Component ToDoList where
 itemContainer :: HTML
 itemContainer =
   with li
-       (attrs .
-        at "style" ?=
-        "border-bottom-color: rgb(237, 237, 237); border-bottom-style: none; border-bottom-width: 1px; font-size: 24px; position: relative;")
+       (style .=
+        do borderBottomColor (rgb 237 237 237)
+           borderBottomStyle none
+           borderBottomWidth (px 1)
+           fontSize (px 24)
+           position relative)
        []
 
 toDoContainer :: HTML
 toDoContainer =
   with ul
-       (do attrs .
-             at "style" ?=
-             "list-style-type: none; padding: 0px; margin: 0px;")
+       (style .=
+        do listStyleType none
+           sym padding (px 0)
+           sym margin (px 0))
        []
 
 

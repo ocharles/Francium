@@ -36,6 +36,7 @@ import Control.Monad.State
 import Data.Coerce (coerce)
 import Data.IORef
 import Data.Maybe
+import Data.Text.Lazy (toStrict)
 import Data.String (IsString(..))
 import Francium.DOMEvent
 import GHCJS.DOM
@@ -48,7 +49,9 @@ import Immutable
 import Prelude hiding (div, head, map, mapM, sequence, span)
 import System.IO.Unsafe
 import Data.List (intersperse, intercalate)
-
+import qualified Clay
+import qualified Data.Text as T
+  
 html, head, title, base, link, meta, script, noscript, body, section, nav, article, aside, h1, h2, h3, h4, h5, h6, hgroup, header, footer, address, p, hr, pre, blockquote, ol, ul, li, dl, dt, dd, figure, figcaption, div, a, em, strong, small, s, cite, q, dfn, abbr, data_, time, code, var, samp, kbd, sub, sup, i, b, u, mark, ruby, rt, rp, bdi, bdo, span, br, wbr, ins, del, img, iframe, embed, object, param, video, audio, source, track, canvas, map, area, table, caption, colgroup, col, tbody, thead, tfoot, tr, td, th, form, fieldset, legend, label, input, button, select, datalist, optgroup, option, textarea, keygen, output, progress, meter, details, summary, command, menu, dialog :: HTML
 
 html = emptyElement "html"
@@ -195,15 +198,16 @@ classes :: Traversal' HTML [String]
 classes = attrs . at "class" . anon "" (isEmptyStr . fromJSString) . iso (words . fromJSString) (toJSString . unwords)
   where isEmptyStr = (== ("" :: String))
 
-style :: Traversal' HTML [(String, String)]
+style :: Setter' HTML Clay.Css
 style =
   attrs .
   at "style" .
   anon "" (isEmptyStr . fromJSString) .
-  iso (const [])
-      (toJSString .
-       intercalate ";" .
-       fmap (\(k,v) -> k ++ ": " ++ v))
+  sets (\f x ->
+          toJSString
+            (T.init (T.tail (toStrict (Clay.renderWith Clay.compact
+                                                       []
+                                                       (f (return ())))))))
   where isEmptyStr = (== ("" :: String))
 
 value :: Traversal' HTML (Maybe JSString)
