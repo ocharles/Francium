@@ -3,7 +3,7 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE OverloadedStrings #-}
 module Francium.HTML
-  ( html, head, title, base, link, meta, style, script, noscript, body, section, nav, article, aside, h1, h2, h3, h4, h5, h6, hgroup, header, footer, address, p, hr, pre, blockquote, ol, ul, li, dl, dt, dd, figure, figcaption, div, a, em, strong, small, s, cite, q, dfn, abbr, data_, time, code, var, samp, kbd, sub, sup, i, b, u, mark, ruby, rt, rp, bdi, bdo, span, br, wbr, ins, del, img, iframe, embed, object, param, video, audio, source, track, canvas, map, area, table, caption, colgroup, col, tbody, thead, tfoot, tr, td, th, form, fieldset, legend, label, input, button, select, datalist, optgroup, option, textarea, keygen, output, progress, meter, details, summary, command, menu, dialog
+  ( html, head, title, base, link, meta, script, noscript, body, section, nav, article, aside, h1, h2, h3, h4, h5, h6, hgroup, header, footer, address, p, hr, pre, blockquote, ol, ul, li, dl, dt, dd, figure, figcaption, div, a, em, strong, small, s, cite, q, dfn, abbr, data_, time, code, var, samp, kbd, sub, sup, i, b, u, mark, ruby, rt, rp, bdi, bdo, span, br, wbr, ins, del, img, iframe, embed, object, param, video, audio, source, track, canvas, map, area, table, caption, colgroup, col, tbody, thead, tfoot, tr, td, th, form, fieldset, legend, label, input, button, select, datalist, optgroup, option, textarea, keygen, output, progress, meter, details, summary, command, menu, dialog
 
   , HTML
   , emptyElement
@@ -14,6 +14,7 @@ module Francium.HTML
   , into
   , value
   , namespace
+  , style
 
   , onClick
   , onInput
@@ -46,8 +47,9 @@ import GHCJS.Types
 import Immutable
 import Prelude hiding (div, head, map, mapM, sequence, span)
 import System.IO.Unsafe
+import Data.List (intersperse, intercalate)
 
-html, head, title, base, link, meta, style, script, noscript, body, section, nav, article, aside, h1, h2, h3, h4, h5, h6, hgroup, header, footer, address, p, hr, pre, blockquote, ol, ul, li, dl, dt, dd, figure, figcaption, div, a, em, strong, small, s, cite, q, dfn, abbr, data_, time, code, var, samp, kbd, sub, sup, i, b, u, mark, ruby, rt, rp, bdi, bdo, span, br, wbr, ins, del, img, iframe, embed, object, param, video, audio, source, track, canvas, map, area, table, caption, colgroup, col, tbody, thead, tfoot, tr, td, th, form, fieldset, legend, label, input, button, select, datalist, optgroup, option, textarea, keygen, output, progress, meter, details, summary, command, menu, dialog :: HTML
+html, head, title, base, link, meta, script, noscript, body, section, nav, article, aside, h1, h2, h3, h4, h5, h6, hgroup, header, footer, address, p, hr, pre, blockquote, ol, ul, li, dl, dt, dd, figure, figcaption, div, a, em, strong, small, s, cite, q, dfn, abbr, data_, time, code, var, samp, kbd, sub, sup, i, b, u, mark, ruby, rt, rp, bdi, bdo, span, br, wbr, ins, del, img, iframe, embed, object, param, video, audio, source, track, canvas, map, area, table, caption, colgroup, col, tbody, thead, tfoot, tr, td, th, form, fieldset, legend, label, input, button, select, datalist, optgroup, option, textarea, keygen, output, progress, meter, details, summary, command, menu, dialog :: HTML
 
 html = emptyElement "html"
 head = emptyElement "head"
@@ -55,7 +57,6 @@ title = emptyElement "title"
 base = emptyElement "base"
 link = emptyElement "link"
 meta = emptyElement "meta"
-style = emptyElement "style"
 script = emptyElement "script"
 noscript = emptyElement "noscript"
 body = emptyElement "body"
@@ -194,6 +195,17 @@ classes :: Traversal' HTML [String]
 classes = attrs . at "class" . anon "" (isEmptyStr . fromJSString) . iso (words . fromJSString) (toJSString . unwords)
   where isEmptyStr = (== ("" :: String))
 
+style :: Traversal' HTML [(String, String)]
+style =
+  attrs .
+  at "style" .
+  anon "" (isEmptyStr . fromJSString) .
+  iso (const [])
+      (toJSString .
+       intercalate ";" .
+       fmap (\(k,v) -> k ++ ": " ++ v))
+  where isEmptyStr = (== ("" :: String))
+
 value :: Traversal' HTML (Maybe JSString)
 value = props . at "value"
 
@@ -243,11 +255,11 @@ foreign import javascript safe
   vnodeSetClickEv :: HTML -> JSRef a -> HTML
 
 foreign import javascript safe
-  "new VNode($1.tagName, Immutable.Map($1.properties).set('ev-mouseover', evHook($2)).toJS(), $1.children, $1.key, $1.namespace)"
+  "new VNode($1.tagName, Immutable.Map($1.properties).set('ev-mouseenter', evHook($2)).toJS(), $1.children, $1.key, $1.namespace)"
   vnodeSetMouseOverEv :: HTML -> JSRef a -> HTML
 
 foreign import javascript safe
-  "new VNode($1.tagName, Immutable.Map($1.properties).set('ev-mouseout', evHook($2)).toJS(), $1.children, $1.key, $1.namespace)"
+  "new VNode($1.tagName, Immutable.Map($1.properties).set('ev-mouseleave', evHook($2)).toJS(), $1.children, $1.key, $1.namespace)"
   vnodeSetMouseOutEv :: HTML -> JSRef a -> HTML
 
 foreign import javascript safe
