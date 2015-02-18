@@ -26,34 +26,36 @@ import ToDoList
 import ToggleAll
 
 main :: IO ()
-main =
-  react (mdo itemAdder <- construct NewItemAdder
-             stateFilter <- construct StateFilter
-             clearCompleted <-
-               construct ClearCompleted
-             toggleAll <-
-               construct (ToggleAll (allItems (outputs toDoList)))
-             toDoList <-
-               construct (ToDoList {ToDoList.addItem =
-                                      NewItemAdder.addItem (outputs itemAdder)
-                                   ,ToDoList.clearCompleted =
-                                      ClearCompleted.clearCompleted (outputs clearCompleted)
-                                   ,statusFilter =
-                                      StateFilter.stateFilterF (outputs stateFilter)
-                                   ,setStatuses =
-                                      toggleUpdate (outputs toggleAll)})
-             let openItemCount =
-                   fmap (length .
-                         filter (== Incomplete))
-                        (allItems (outputs toDoList))
-             return (fmap appView
-                          (TodoApp <$> render itemAdder <*> render toDoList <*>
-                           fmap (not . null)
-                                (allItems (outputs toDoList)) <*>
-                           render stateFilter <*>
-                           openItemCount <*>
-                           render clearCompleted <*>
-                           render toggleAll)))
+main = react app
+
+app :: Frameworks t => Moment t (Behavior t HTML)
+app =
+  mdo itemAdder <- construct NewItemAdder
+      stateFilter <- construct StateFilter
+      clearCompleted <- construct ClearCompleted
+      toggleAll <-
+        construct (ToggleAll (allItems (outputs toDoList)))
+      toDoList <-
+        construct (ToDoList {ToDoList.addItem =
+                               NewItemAdder.addItem (outputs itemAdder)
+                            ,ToDoList.clearCompleted =
+                               ClearCompleted.clearCompleted (outputs clearCompleted)
+                            ,statusFilter =
+                               StateFilter.stateFilterF (outputs stateFilter)
+                            ,setStatuses =
+                               toggleUpdate (outputs toggleAll)})
+      let openItemCount =
+            fmap (length .
+                  filter (== Incomplete))
+                 (allItems (outputs toDoList))
+      return (fmap appView
+                   (TodoApp <$> render itemAdder <*> render toDoList <*>
+                    fmap (not . null)
+                         (allItems (outputs toDoList)) <*>
+                    render stateFilter <*>
+                    openItemCount <*>
+                    render clearCompleted <*>
+                    render toggleAll))
 
 mainContainer :: HTML
 mainContainer =
