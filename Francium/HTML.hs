@@ -25,6 +25,7 @@ module Francium.HTML
   , onMouseOut
   , renderTo
   , newTopLevelContainer
+  , bodyContainer
   , takesFocus
   )
 where
@@ -360,3 +361,11 @@ newTopLevelContainer = do
   Just bodyNode <- documentGetBody doc
   _ <- nodeAppendChild bodyNode (Just el)
   return (VNodePresentation currentVNode el)
+
+bodyContainer :: IO VNodePresentation
+bodyContainer = do
+  initialVNode <- return div
+  currentVNode <- newIORef initialVNode
+  Just doc <- currentDocument
+  Just bodyNode <- documentGetBody doc
+  return (VNodePresentation currentVNode (toElement bodyNode))
