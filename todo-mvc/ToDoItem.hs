@@ -8,6 +8,7 @@
 
 module ToDoItem where
 
+import Data.Monoid ((<>))
 import Clay ((-:))
 import Clay.Time
 import Clay.Background
@@ -64,10 +65,12 @@ instance Component ToDoItem where
                                                      destroy :: event (),
                                                      steppedContent :: behavior JSString}
   construct toDoItem =
-    do container <-
-         construct (HoverObserver (PureComponent div))
+    do (hookHoverContainer,isHoveringRow) <- newHoverObserver
+       container <- construct (PureComponent div)
+       (hookKeyPresses,keyPressed) <- newKeyPressObserver
+       (hookFocus,lostFocus) <- newFocusTracker
        textInput <-
-         construct (TrackFocus (KeyPressObserver (TextInput (initialContent toDoItem) never)))
+         construct (TextInput (initialContent toDoItem) never)
        destroyButton <-
          construct (Button ["\215"])
        statusCheckbox <-
@@ -83,9 +86,8 @@ instance Component ToDoItem where
                    (domEvent click)
            switchToViewing =
              whenE (fmap (Editing ==) state)
-                   (unions [lostFocus (outputs textInput)
-                           ,void (filterE (`elem` [13,27])
-                                          (keyPressed (TrackFocus.passThrough (outputs textInput))))])
+                   (unions [lostFocus
+                           ,void (filterE (`elem` [13,27]) keyPressed)])
            state =
              accumB Viewing
                     (unions [const Editing <$
@@ -93,19 +95,22 @@ instance Component ToDoItem where
                             ,const Viewing <$
                              switchToViewing])
            showDestroy =
-             liftA2 (&&)
-                    (fmap (Viewing ==) state)
-                    (isHovered (outputs container))
+             liftA2 (&&) (fmap (Viewing ==) state) isHoveringRow
            itemValue =
-             TextInput.value (KeyPressObserver.passThrough (TrackFocus.passThrough (outputs textInput)))
+             TextInput.value (outputs textInput)
            selfDestruct =
              unions [clicked (outputs destroyButton)
                     ,whenE (fmap isEmptyString itemValue) switchToViewing]
            self =
              Instantiation {render =
                               itemRenderer click <$> render destroyButton <*>
-                              render statusCheckbox <*> render container <*>
-                              showDestroy <*> state <*> render textInput <*>
+                              render statusCheckbox <*>
+                              fmap (applyHooks hookHoverContainer)
+                                   (render container) <*>
+                              showDestroy <*>
+                              state <*>
+                              fmap (applyHooks (hookKeyPresses <> hookFocus))
+                                   (render textInput) <*>
                               itemValue <*>
                               (status (outputs self))
                            ,outputs =

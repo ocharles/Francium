@@ -22,8 +22,9 @@ instance Component ClearCompleted where
   data Output behavior event
        ClearCompleted = ClearCompletedOutput{clearCompleted :: event ()}
   construct _ =
-    do b <-
-         construct (HoverObserver (PureComponent button))
+    do (hookHover, isHovering) <- newHoverObserver
+       b <-
+         construct (PureComponent button)
        click <- newDOMEvent
        return Instantiation {outputs =
                                ClearCompletedOutput {clearCompleted = domEvent click}
@@ -38,5 +39,5 @@ instance Component ClearCompleted where
                                                         cursor pointer)
                                                   onClick click)
                                               ["Clear Completed"])
-                                      (isHovered (outputs b))
+                                      isHovering
                                       (render b)}

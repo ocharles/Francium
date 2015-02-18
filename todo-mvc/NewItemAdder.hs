@@ -15,6 +15,7 @@ import KeyPressObserver
 import Prelude hiding (div, span)
 import Reactive.Banana
 import TextInput
+import HoverObserver
 
 -- | The 'NewItemAdder' component allows users to add new items to their to-do
 -- list. Visually, it appears as an <input> box, and fires the 'addItem' event
@@ -27,29 +28,29 @@ instance Component NewItemAdder where
                                                         event JSString}
   construct NewItemAdder =
     mdo
-        -- Construct an input field component, and transform this component
-        -- with the 'KeyPressObserver' component transformer.
+        -- Construct an input field component.
         inputComponent <-
-          construct (KeyPressObserver
-                       (TextInput {initialText = ""
-                                  ,updateText =
-                                     fmap (const (const "")) returnPressed}))
+          construct (TextInput {initialText = ""
+                               ,updateText =
+                                  fmap (const (const "")) returnPressed})
+        (hookKeyPress,keyPressed) <- newKeyPressObserver
         let
             -- The 'KeyPressObserver' gives us an event whenever a key is pressed.
             -- We only need to know when the user presses return, so we filter
             -- the event stream accordingly.
-            returnPressed =
-              listenForReturn (keyPressed (outputs inputComponent))
+            returnPressed = listenForReturn keyPressed
             -- The itemValue is the title of the to-do item being added. We
             -- pass through the behavior from the TextInput component, which
             -- provides us with the contents of the text box.
             itemValue =
-              TextInput.value (passThrough (outputs inputComponent))
+              TextInput.value (outputs inputComponent)
         return Instantiation {render =
                                 -- To render the component, we simply reskin the
                                 -- TextInput component
-                                fmap (execState inputAttributes)
-                                     (render inputComponent)
+                                fmap
+                                  (applyHooks hookKeyPress .
+                                   execState inputAttributes)
+                                  (render inputComponent)
                              ,outputs =
                                 -- The outputs of this component is an Event
                                 -- that samples the contents of the input field

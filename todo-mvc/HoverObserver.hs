@@ -1,34 +1,33 @@
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeFamilies #-}
 
 module HoverObserver where
 
-import Control.Monad.Trans.State.Strict
+import Control.Monad.State 
 import Francium
-import Francium.Component
 import Francium.HTML hiding (a)
 
-data HoverObserver a t =
-  HoverObserver (a t)
+data Hook = Hook { applyHook :: forall m. MonadState HTML m => m () }
 
-instance Component a => Component (HoverObserver a) where
-  data Output behavior event
-       (HoverObserver a) = HoverObserverOutput{passThrough ::
-                                               Output behavior event a,
-                                               isHovered :: behavior Bool}
-  construct (HoverObserver a) =
-    do inner <- construct a
-       mouseOver <- newDOMEvent
-       mouseOut <- newDOMEvent
-       let mouseHovering =
-             accumB False
-                    ((const True <$
-                      domEvent mouseOver) `union`
-                     (const False <$
-                      domEvent mouseOut))
-       return Instantiation {outputs =
-                               HoverObserverOutput {passThrough = outputs inner
-                                                   ,isHovered = mouseHovering}
-                            ,render =
-                               fmap (execState (do onMouseOver mouseOver
-                                                   onMouseOut mouseOut))
-                                    (render inner)}
+instance Monoid Hook where
+  mempty = Hook (return ())
+  mappend (Hook a) (Hook y) = Hook (a >> y)
+
+applyHooks :: Hook -> HTML -> HTML
+applyHooks = execState . applyHook
+
+newHoverObserver :: Frameworks t => Moment t (Hook, Behavior t Bool)
+newHoverObserver =
+  do mouseOver <- newDOMEvent
+     mouseOut <- newDOMEvent
+     let mouseHovering =
+           accumB False
+                  ((const True <$
+                    domEvent mouseOver) `union`
+                   (const False <$
+                    domEvent mouseOut))
+         hook = Hook
+           (do onMouseOver mouseOver
+               onMouseOut mouseOut)
+     return (hook,mouseHovering)

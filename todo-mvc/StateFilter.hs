@@ -97,8 +97,9 @@ instance Component FilterSelector where
   data Output behavior event
        FilterSelector = FilterOutput{filterClicked :: event Filter}
   construct fc =
-    do baseAnchor <-
-         construct (HoverObserver (Anchor [text (show (filterType fc))]))
+    do (hoverHook,isHovering) <- newHoverObserver
+       baseAnchor <-
+         construct (Anchor [text (show (filterType fc))])
        let selectionState =
              liftA2 (\isHovering isSelected ->
                        if isSelected
@@ -106,14 +107,15 @@ instance Component FilterSelector where
                           else if isHovering
                                   then Hover
                                   else NoSelection)
-                    (isHovered (outputs baseAnchor))
+                    isHovering
                     (isActive fc)
        return Instantiation {outputs =
                                FilterOutput {filterClicked =
                                                filterType fc <$
-                                               clicked (passThrough (outputs baseAnchor))}
+                                               clicked (outputs baseAnchor)}
                             ,render =
-                               liftA2 renderStateSelector selectionState (render baseAnchor)}
+                               fmap (applyHooks hoverHook)
+                                    (liftA2 renderStateSelector selectionState (render baseAnchor))}
     where renderStateSelector selectionState =
             execState (style .=
                        do borderWidth (px 1)
