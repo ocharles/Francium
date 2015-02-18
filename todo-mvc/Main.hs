@@ -21,12 +21,9 @@ import Francium.HTML hiding (em, map)
 import NewItemAdder
 import Prelude hiding (div, span)
 import StateFilter
-import ToDoItem
 import ToDoList
 import ToggleAll
-
-main :: IO ()
-main = react app
+import OpenItemCount
 
 -- | 'app' defines our TodoMVC clone's top-level definition. To Francium, web
 -- applications are simply time-varying HTML documents, and we can see this from
@@ -47,6 +44,18 @@ app =
       -- The clearCompleted component provides a button that will remove all
       -- completed to-do items, leaving just incomplete items.
       clearCompleted <- construct ClearCompleted
+      -- The openItemCount component simply displays the count of incomplete
+      -- todo items.
+      --
+      -- Here we see our first component that requires external inputs.
+      -- Specifically, the openItemCount component needs to know which to-do
+      -- items are present. To provide it with this information, we simply
+      -- proxy this data through from the contents of the toDoList component,
+      -- which we construct next. (Note that we can refer to declarations
+      -- created later by using @mdo@ syntax).
+      openItemCount <-
+        construct OpenItemCount {OpenItemCount.items =
+                                   allItems (outputs toDoList)}
       -- The toggle all component is a checkbox that updates the status of all
       -- to-do items. If any are incomplete, then toggling it will mark all
       -- items as complete. If all items are complete, toggling it will mark all
@@ -58,7 +67,7 @@ app =
       -- of the ToDoList component, which we construct next. (Note that we can
       -- refer to declarations created later by using @mdo@ syntax).
       toggleAll <-
-        construct (ToggleAll {items =
+        construct (ToggleAll {ToggleAll.items =
                                 allItems (outputs toDoList)})
       -- Finally, we construct the toDoList component, which renders all known
       -- to-do items, along with managing the state and persistance of the to-do
@@ -81,18 +90,25 @@ app =
                                -- An event that updates the status of all to-do
                                -- items.
                                toggleUpdate (outputs toggleAll)})
-      let openItemCount =
-            fmap (length .
-                  filter (== Incomplete))
-                 (allItems (outputs toDoList))
+      -- Now that we have constructed all the necessary components, the
+      -- remaining step is to lay them out accordingly. To do so, we use
+      -- applicative syntax to snapshot the renderings of each child component
+      -- at the same point in time, and then lay this out in 'appView'.
       return (fmap appView
                    (TodoApp <$> render newItemAdder <*> render toDoList <*>
                     fmap (not . null)
                          (allItems (outputs toDoList)) <*>
                     render stateFilter <*>
-                    openItemCount <*>
+                    render openItemCount <*>
                     render clearCompleted <*>
                     render toggleAll))
+
+-- | Now that we have declared our application's event network, the only
+-- remaining step is to execute it. To do that, we simply apply 'react' to
+-- 'app'. 'react' will watch 'app's HTML 'Behavior', and - whenever it changes -
+-- render this into the browsers DOM.
+main :: IO ()
+main = react app
 
 mainContainer :: HTML
 mainContainer =
@@ -127,8 +143,8 @@ pageTitle =
            position absolute)
        ["todos"]
 
-toDoSummary :: Int -> HTML -> HTML -> HTML
-toDoSummary n stateFilter clearCompletedButton =
+toDoSummary :: HTML -> HTML -> HTML -> HTML
+toDoSummary openItemCount stateFilter clearCompletedButton =
   with footer
        (style .=
         do borderTopColor (rgb 230 230 230)
@@ -150,19 +166,7 @@ toDoSummary n stateFilter clearCompletedButton =
                  --"box-shadow: 0 1px 1px rgba(0, 0, 0, 0.2), 0 8px 0 -3px #f6f6f6, 0 9px 1px -3px rgba(0, 0, 0, 0.2), 0 16px 0 -6px #f6f6f6, 0 17px 2px -6px rgba(0, 0, 0, 0.2);")
                  overflow hidden)
              []
-       ,with span
-             (style .=
-              (do textAlign (alignSide sideLeft)
-                  float floatLeft))
-             [with strong
-                   (style .=
-                    fontWeight (weight 300))
-                   [text (show n)]
-             ," "
-             ,if n == 1
-                 then "item"
-                 else "items"
-             ," left"]
+       ,openItemCount
        ,stateFilter
        ,clearCompletedButton
        ,with button
@@ -243,7 +247,7 @@ data TodoApp =
           ,taToDoList :: HTML
           ,taHasItems :: Bool
           ,taStateFilter :: HTML
-          ,taOpenItemCount :: Int
+          ,taOpenItemCount :: HTML
           ,taClearCompleted :: HTML
           ,taToggleAll :: HTML}
 
