@@ -1,26 +1,29 @@
 {-# LANGUAGE RecursiveDo #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-import ToDoList
+import Clay ((-:))
+import Clay.Background
+import Clay.Border
+import Clay.Box
+import Clay.Color
+import Clay.Common as Css
+import Clay.Display
+import Clay.Font
+import Clay.Geometry
+import Clay.Size
+import Clay.Text
 import ClearCompleted
 import Control.Lens ((?=), (.=), at)
 import Control.Monad
 import Francium
 import Francium.Component
-import Francium.HTML hiding (map)
+import Francium.HTML hiding (em, map)
 import NewItemAdder
 import Prelude hiding (div, span)
 import StateFilter
 import ToDoItem
+import ToDoList
 import ToggleAll
-import Clay.Box
-import Clay.Size
-import Clay.Color
-import Clay.Display
-import Clay.Geometry
-import Clay.Border
-import Clay.Background
-import Clay.Common
 
 main :: IO ()
 main =
@@ -55,38 +58,66 @@ main =
 mainContainer :: HTML
 mainContainer =
   with div
-       (attrs .
-        at "style" ?=
-        "padding: 0px; margin: 0px auto; font-weight: 300; -webkit-font-smoothing: antialiased; max-width: 550px; min-width: 230px; color: rgb(77, 77, 77); line-height: 1.4em; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 14px; font-stretch: normal; font-variant: normal; font-style: normal; background-color: rgb(245, 245, 245);")
+       (style .=
+        do sym padding (px 0)
+           sym2 margin (px 0) auto
+           fontWeight (weight 300)
+           maxWidth (px 550)
+           minWidth (px 230)
+           color (rgb 77 77 77)
+           lineHeight (em 1.4)
+           fontFamily ["Helvetica Neue","Helvetica","Arial"]
+                      [sansSerif]
+           fontSize (px 14)
+           "font-stretch" -: "normal"
+           fontVariant normal
+           fontStyle normal
+           backgroundColor (rgb 245 245 245))
        []
 
 pageTitle :: HTML
 pageTitle =
   with h1
-       (do attrs .
-             at "style" ?=
-             "text-rendering: optimizelegibility; color: rgba(175, 47, 47, 0.14902); text-align: center; font-weight: 100; font-size: 100px; width: 100%; top: -155px; position: absolute;")
+       (style .=
+        do color (rgba 175 47 47 39)
+           textAlign (alignSide sideCenter)
+           fontWeight (weight 100)
+           fontSize (px 100)
+           width (pct 100)
+           top (px (-155))
+           position absolute)
        ["todos"]
 
 toDoSummary :: Int -> HTML -> HTML -> HTML
 toDoSummary n stateFilter clearCompletedButton =
   with footer
-       (do attrs .
-             at "style" ?=
-             "border-top-color: rgb(230, 230, 230); border-top-style: solid; border-top-width: 1px; text-align: center; height: 20px; padding: 10px 15px; color: rgb(119, 119, 119);")
+       (style .=
+        do borderTopColor (rgb 230 230 230)
+           borderTopStyle solid
+           borderTopWidth (px 1)
+           textAlign (alignSide sideCenter)
+           height (px 20)
+           sym2 padding
+                (px 10)
+                (px 15)
+           color (rgb 119 119 119))
        [with div
-             (attrs .
-              at "style" ?=
-              "content: ''; position: absolute; right: 0; bottom: 0; left: 0; height: 50px; overflow: hidden; box-shadow: 0 1px 1px rgba(0, 0, 0, 0.2), 0 8px 0 -3px #f6f6f6, 0 9px 1px -3px rgba(0, 0, 0, 0.2), 0 16px 0 -6px #f6f6f6, 0 17px 2px -6px rgba(0, 0, 0, 0.2);")
+             (style .=
+              do position absolute
+                 right (px 0)
+                 bottom (px 0)
+                 left (px 0)
+                 height (px 50)
+                 --"box-shadow: 0 1px 1px rgba(0, 0, 0, 0.2), 0 8px 0 -3px #f6f6f6, 0 9px 1px -3px rgba(0, 0, 0, 0.2), 0 16px 0 -6px #f6f6f6, 0 17px 2px -6px rgba(0, 0, 0, 0.2);")
+                 overflow hidden)
              []
        ,with span
-             (do attrs .
-                   at "style" ?=
-                   "text-align: left; float: left;")
+             (style .=
+              (do textAlign (alignSide sideLeft)
+                  float floatLeft))
              [with strong
-                   (do attrs .
-                         at "style" ?=
-                         "font-weight: 300;")
+                   (style .=
+                    fontWeight (weight 300))
                    [text (show n)]
              ," "
              ,if n == 1
@@ -96,57 +127,73 @@ toDoSummary n stateFilter clearCompletedButton =
        ,stateFilter
        ,clearCompletedButton
        ,with button
-             (do attrs .
-                   at "style" ?=
-                   "-webkit-font-smoothing: antialiased; -webkit-appearance: none; vertical-align: baseline; font-size: 100%; border-width: 0px; padding: 0px; margin: 0px; outline-style: none; position: relative; visibility: hidden; cursor: pointer; text-decoration-line: none; line-height: 20px; float: right; background-image: none;")
+             (style .=
+              do verticalAlign baseline
+                 fontSize (pct 100)
+                 borderWidth (px 0)
+                 sym padding (px 0)
+                 sym margin (px 0)
+                 outlineStyle none
+                 position relative
+                 visibility hidden
+                 cursor pointer
+                 textDecorationLine none
+                 lineHeight (px 20)
+                 float floatRight
+                 backgroundImage none)
              []]
 
 pageFooter :: HTML
 pageFooter =
   with footer
-       (do attrs .
-             at "style" ?=
-             "text-align: center; text-shadow: rgba(255, 255, 255, 0.498039) 0px 1px 0px; font-size: 10px; color: rgb(191, 191, 191); margin: 65px auto 0px;")
+       (style .=
+        do textAlign (alignSide sideCenter)
+           textShadow (px 0)
+                      (px 1)
+                      (px 0)
+                      (rgba 255 255 255 127)
+           fontSize (px 10)
+           color (rgb 191 191 191)
+           sym3 margin
+                (px 65)
+                auto
+                (px 0))
        [with p
-             (do attrs .
-                   at "style" ?=
-                   "line-height: 1;")
+             (style .=
+              lineHeight (1 :: Size Rel))
              ["Double-click to edit a todo"]
        ,with p
-             (do attrs .
-                   at "style" ?=
-                   "line-height: 1;")
+             (style .=
+              lineHeight (1 :: Size Rel))
              ["Template by "
              ,with a
-                   (do attrs .
-                         at "style" ?=
-                         "font-weight: 400; text-decoration-line: none;"
+                   (do style .=
+                         do fontWeight (weight 400)
+                            textDecorationLine none
                        attrs .
                          at "href" ?=
                          "http://sindresorhus.com")
                    ["Sindre Sorhus"]]
        ,with p
-             (do attrs .
-                   at "style" ?=
-                   "line-height: 1;")
+             (style .=
+              lineHeight (1 :: Size Rel))
              ["Created by "
              ,with a
-                   (do attrs .
-                         at "style" ?=
-                         "font-weight: 400; text-decoration-line: none;"
+                   (do style .=
+                         do fontWeight (weight 400)
+                            textDecorationLine none
                        attrs .
                          at "href" ?=
                          "http://todomvc.com")
                    ["you"]]
        ,with p
-             (do attrs .
-                   at "style" ?=
-                   "line-height: 1;")
+             (style .=
+              lineHeight (1 :: Size Rel))
              ["Part of "
              ,with a
-                   (do attrs .
-                         at "style" ?=
-                         "font-weight: 400; text-decoration-line: none;"
+                   (do style .=
+                         do fontWeight (weight 400)
+                            textDecorationLine none
                        attrs .
                          at "href" ?=
                          "http://todomvc.com")
