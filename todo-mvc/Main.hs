@@ -28,28 +28,65 @@ import ToggleAll
 main :: IO ()
 main = react app
 
+-- | 'app' defines our TodoMVC clone's top-level definition. To Francium, web
+-- applications are simply time-varying HTML documents, and we can see this from
+-- the type of 'app' - after building an event network in the 'Moment' monad, it
+-- returns a single 'Behavior' containing 'HTML' values.
+--
+-- Inside our 'app' function, we simply build all the necessary components for
+-- the TodoMVC application, and wire them together appropriately.
 app :: Frameworks t => Moment t (Behavior t HTML)
 app =
-  mdo itemAdder <- construct NewItemAdder
+  mdo
+      -- The newItemAdder component allows users to append new items to their
+      -- to-do list.
+      newItemAdder <- construct NewItemAdder
+      -- The state filter component allows users to show all to-do items, or
+      -- only complete/incomplete items.
       stateFilter <- construct StateFilter
+      -- The clearCompleted component provides a button that will remove all
+      -- completed to-do items, leaving just incomplete items.
       clearCompleted <- construct ClearCompleted
+      -- The toggle all component is a checkbox that updates the status of all
+      -- to-do items. If any are incomplete, then toggling it will mark all
+      -- items as complete. If all items are complete, toggling it will mark all
+      -- items as incomplete.
+      --
+      -- Here we see our first component that requires external inputs.
+      -- Specifically, the ToggleAll component needs to know the status of items
+      -- in the to-do list. We simply this data by proxying through the contents
+      -- of the ToDoList component, which we construct next. (Note that we can
+      -- refer to declarations created later by using @mdo@ syntax).
       toggleAll <-
-        construct (ToggleAll (allItems (outputs toDoList)))
+        construct (ToggleAll {items =
+                                allItems (outputs toDoList)})
+      -- Finally, we construct the toDoList component, which renders all known
+      -- to-do items, along with managing the state and persistance of the to-do
+      -- list.
+      --
+      -- This component has many external inputs:
       toDoList <-
         construct (ToDoList {ToDoList.addItem =
-                               NewItemAdder.addItem (outputs itemAdder)
+                               -- An event to add a new item to the to-do list.
+                               NewItemAdder.addItem (outputs newItemAdder)
                             ,ToDoList.clearCompleted =
+                               -- An event to clear all completed to-do items by
+                               -- removing them from the list.
                                ClearCompleted.clearCompleted (outputs clearCompleted)
                             ,statusFilter =
+                               -- A function (that changes over time) indicating
+                               -- which to-do items the user wishes to view.
                                StateFilter.stateFilterF (outputs stateFilter)
                             ,setStatuses =
+                               -- An event that updates the status of all to-do
+                               -- items.
                                toggleUpdate (outputs toggleAll)})
       let openItemCount =
             fmap (length .
                   filter (== Incomplete))
                  (allItems (outputs toDoList))
       return (fmap appView
-                   (TodoApp <$> render itemAdder <*> render toDoList <*>
+                   (TodoApp <$> render newItemAdder <*> render toDoList <*>
                     fmap (not . null)
                          (allItems (outputs toDoList)) <*>
                     render stateFilter <*>
