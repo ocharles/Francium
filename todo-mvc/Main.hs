@@ -1,9 +1,12 @@
 {-# LANGUAGE RecursiveDo #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-import Clay ((-:))
+import Clay ((-:), Css)
 import Clay.Background
 import Clay.Border
+import Clay.Property
+import Clay.Stylesheet
+import Data.Monoid
 import Clay.Box
 import Clay.Color
 import Clay.Common as Css
@@ -94,14 +97,14 @@ app =
       -- remaining step is to lay them out accordingly. To do so, we use
       -- applicative syntax to snapshot the renderings of each child component
       -- at the same point in time, and then lay this out in 'appView'.
-      return (fmap appView
-                   (TodoApp <$> render newItemAdder <*> render toDoList <*>
-                    fmap (not . null)
-                         (allItems (outputs toDoList)) <*>
-                    render stateFilter <*>
-                    render openItemCount <*>
-                    render clearCompleted <*>
-                    render toggleAll))
+      return
+        (appView <$> render newItemAdder <*> render toDoList <*>
+         fmap (not . null)
+              (allItems (outputs toDoList)) <*>
+         render stateFilter <*>
+         render openItemCount <*>
+         render clearCompleted <*>
+         render toggleAll)
 
 -- | Now that we have declared our application's event network, the only
 -- remaining step is to execute it. To do that, we simply apply 'react' to
@@ -110,9 +113,27 @@ app =
 main :: IO ()
 main = react app
 
+-- | The 'appView' function simply stiches together all renderings of child
+-- components into the main HTML of the document. Francium encourages the use
+-- of inline styles, but that requires discipline in making small functions.
+-- Here we see that most of the elements that we're adding content to are
+-- abstract HTML values.
+appView :: HTML -> HTML -> Bool -> HTML -> HTML -> HTML -> HTML -> HTML
+appView newItemAdder toDoList hasItems stateFilter openItemCounter clearCompleted toggleAll =
+  into mainContainer
+       [into rootSection
+             (into header [pageTitle,newItemAdder] :
+              if hasItems
+                 then [into toDoSection [toggleAll,toDoList]
+                      ,toDoSummary openItemCounter stateFilter clearCompleted]
+                 else [])
+       ,pageFooter]
+
+-- | The application itself is rendered into the <body> of the document. Here
+-- we style the body accordingly.
 mainContainer :: HTML
 mainContainer =
-  with div
+  with body
        (style .=
         do sym padding (px 0)
            sym2 margin (px 0) auto
@@ -128,6 +149,20 @@ mainContainer =
            fontVariant normal
            fontStyle normal
            backgroundColor (rgb 245 245 245))
+       []
+
+rootSection :: HTML
+rootSection =
+  with section
+       (style .=
+        do boxShadows
+             [(px 0,px 2,px 4,rgba 0 0 0 51),(px 0,px 25,px 50,rgba 0 0 0 25)]
+           position relative
+           margin (px 130)
+                  (px 0)
+                  (px 40)
+                  (px 0)
+           backgroundColor (rgb 255 255 255))
        []
 
 pageTitle :: HTML
@@ -163,7 +198,12 @@ toDoSummary openItemCount stateFilter clearCompletedButton =
                  bottom (px 0)
                  left (px 0)
                  height (px 50)
-                 --"box-shadow: 0 1px 1px rgba(0, 0, 0, 0.2), 0 8px 0 -3px #f6f6f6, 0 9px 1px -3px rgba(0, 0, 0, 0.2), 0 16px 0 -6px #f6f6f6, 0 17px 2px -6px rgba(0, 0, 0, 0.2);")
+                 boxShadows4
+                   [(px 0,px 1,px 1,px 0,rgba 0 0 0 50)
+                   ,(px 0,px 8,px 0,px (-3),rgb 246 246 246)
+                   ,(px 0,px 9,px 1,px (-3),rgba 0 0 0 50)
+                   ,(px 0,px 16,px 0,px (-6),rgb 246 246 246)
+                   ,(px 0,px 17,px 2,px (-6),rgba 0 0 0 50)]
                  overflow hidden)
              []
        ,openItemCount
@@ -203,11 +243,11 @@ pageFooter =
                 (px 0))
        [with p
              (style .=
-              lineHeight (1 :: Size Rel))
+              lineHeight (1 :: Size Abs))
              ["Double-click to edit a todo"]
        ,with p
              (style .=
-              lineHeight (1 :: Size Rel))
+              lineHeight (1 :: Size Abs))
              ["Template by "
              ,with a
                    (do style .=
@@ -219,7 +259,7 @@ pageFooter =
                    ["Sindre Sorhus"]]
        ,with p
              (style .=
-              lineHeight (1 :: Size Rel))
+              lineHeight (1 :: Size Abs))
              ["Created by "
              ,with a
                    (do style .=
@@ -231,7 +271,7 @@ pageFooter =
                    ["you"]]
        ,with p
              (style .=
-              lineHeight (1 :: Size Rel))
+              lineHeight (1 :: Size Abs))
              ["Part of "
              ,with a
                    (do style .=
@@ -242,47 +282,18 @@ pageFooter =
                          "http://todomvc.com")
                    ["TodoMVC"]]]
 
-data TodoApp =
-  TodoApp {taAddANewItem :: HTML
-          ,taToDoList :: HTML
-          ,taHasItems :: Bool
-          ,taStateFilter :: HTML
-          ,taOpenItemCount :: HTML
-          ,taClearCompleted :: HTML
-          ,taToggleAll :: HTML}
+toDoSection :: HTML
+toDoSection =
+  with section
+       (style .=
+        do borderTop solid
+                     (px 1)
+                     (rgb 230 230 230)
+           zIndex 2
+           position relative)
+       []
 
-appView :: TodoApp -> HTML
-appView components =
-  into mainContainer
-       [with section
-             (style .=
-              do boxShadows [(px 0,px 2,px 4,rgba 0 0 0 51)]
-                 position relative
-                 margin (px 130)
-                        (px 0)
-                        (px 40)
-                        (px 0)
-                 backgroundColor (rgb 255 255 255))
-             (into header [pageTitle,taAddANewItem components] :
-              case taHasItems components of
-                False -> []
-                True ->
-                  [with section
-                        (style .=
-                         do borderTop solid
-                                      (px 1)
-                                      (rgb 230 230 230)
-                            zIndex 2
-                            position relative)
-                        [taToggleAll components
-                        ,with label
-                              (do style .= display none
-                                  attrs .
-                                    at "for" ?=
-                                    "toggle-all")
-                              ["Mark all as complete"]
-                        ,taToDoList components]
-                  ,toDoSummary (taOpenItemCount components)
-                               (taStateFilter components)
-                               (taClearCompleted components)])
-       ,pageFooter]
+boxShadows4 :: [(Size a, Size a, Size a, Size a, Color)] -> Css
+boxShadows4 =
+  prefixed (browsers <> "box-shadow") .
+  map (\(a,b,c,d,e) -> a ! b ! c ! d ! e)

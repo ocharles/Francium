@@ -215,7 +215,7 @@ instance Component ToDoItem where
                           (sec 0.4)
                           auto
                           auto
-               lineHeight (1.2 :: Size Rel)
+               lineHeight (1.2 :: Size Abs)
                display block
                marginLeft (px 45)
                padding (px 15)
@@ -230,7 +230,7 @@ instance Component ToDoItem where
                           (sec 0.4)
                           auto
                           auto
-               lineHeight (1.2 :: Size Rel)
+               lineHeight (1.2 :: Size Abs)
                display block
                marginLeft (px 45)
                padding (px 15)
