@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecursiveDo #-}
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeFamilies #-}
 
 module ToDoList where
@@ -21,6 +22,7 @@ import Francium.Component
 import Francium.HTML hiding (i, map)
 import GHCJS.Foreign
 import GHCJS.Types
+import IdiomExp
 import Reactive.Banana
 import ToDoItem
 import qualified Storage
@@ -68,7 +70,7 @@ instance Component ToDoList where
                             now (render item)
                           status_ <-
                             now (status (outputs item))
-                          return (liftA2 (,) render_ status_)))
+                          return $(i [|(render_,status_)|])))
         let eItemsChanged =
               accumE (map fst initialItems)
                      (unions [fmap append eAddItem
@@ -87,9 +89,7 @@ instance Component ToDoList where
               switchB startingView
                       (fmap (sequenceA .
                              fmap (\item ->
-                                     liftA2 (,)
-                                            (render item)
-                                            (status (outputs item))))
+                                     $(i [|(render item,status (outputs item))|])))
                             eItemsChanged)
             destroyItem =
               switchE (fmap (\events ->
@@ -99,17 +99,14 @@ instance Component ToDoList where
                                                (mapM now events)))
                             (fmap (map (ToDoItem.destroy . outputs)) eItemsChanged))
             visibleItems =
-              liftA2 (\f ->
-                        map fst .
-                        (filter (f . snd)))
-                     (statusFilter tdi)
-                     items
+              $(i [|map (pure fst)
+                        $(i [|filter $(i [|statusFilter tdi . pure snd|]) items|])|])
             stableData =
               switchB (pure openingStorage)
                       (fmap (traverse (\item ->
-                                         liftA2 Storage.ToDoItem
+                                         $(i [| Storage.ToDoItem
                                                 (fmap fromJSString (steppedContent (outputs item)))
-                                                (fmap (== Complete) (status (outputs item)))))
+                                                (fmap (== Complete) (status (outputs item))) |])))
                             eItemsChanged)
         stableDataChanged <- changes stableData
         reactimate' (fmap (fmap Storage.store) stableDataChanged)

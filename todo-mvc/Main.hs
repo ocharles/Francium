@@ -1,32 +1,34 @@
-{-# LANGUAGE RecursiveDo #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE RecursiveDo #-}
+{-# LANGUAGE TemplateHaskell #-}
 
-import Clay ((-:), Css)
 import Clay.Background
 import Clay.Border
-import Clay.Property
-import Clay.Stylesheet
-import Data.Monoid
 import Clay.Box
 import Clay.Color
 import Clay.Common as Css
 import Clay.Display
 import Clay.Font
 import Clay.Geometry
+import Clay.Property
 import Clay.Size
+import Clay.Stylesheet
 import Clay.Text
 import ClearCompleted
 import Control.Lens ((?=), (.=), at)
 import Control.Monad
+import Data.Monoid
 import Francium
 import Francium.Component
-import Francium.HTML hiding (em, map)
+import Francium.HTML hiding (em, i, map)
 import NewItemAdder
+import OpenItemCount
 import Prelude hiding (div, span)
 import StateFilter
 import ToDoList
 import ToggleAll
-import OpenItemCount
+import IdiomExp
 
 -- | 'app' defines our TodoMVC clone's top-level definition. To Francium, web
 -- applications are simply time-varying HTML documents, and we can see this from
@@ -98,13 +100,17 @@ app =
       -- applicative syntax to snapshot the renderings of each child component
       -- at the same point in time, and then lay this out in 'appView'.
       return
-        (appView <$> render newItemAdder <*> render toDoList <*>
-         fmap (not . null)
-              (allItems (outputs toDoList)) <*>
-         render stateFilter <*>
-         render openItemCount <*>
-         render clearCompleted <*>
-         render toggleAll)
+        $(i [|appView $(i [|AppView {avNewItemAdder = render newItemAdder
+                                    ,avToDoList = render toDoList
+                                    ,avHasItems =
+                                       -- $(i [|(not . null) (allItems (outputs toDoList))|])
+                                       fmap (not . null)
+                                            (allItems (outputs toDoList))
+                                    ,avToDoSummary =
+                                       $(i [|ToDoSummary {tdsOpenItemCounter = render openItemCount
+                                                         ,tdsStateFilter = render stateFilter
+                                                         ,tdsClearCompleted = render clearCompleted}|])
+                                    ,avToggleAll = render toggleAll}|])|])
 
 -- | Now that we have declared our application's event network, the only
 -- remaining step is to execute it. To do that, we simply apply 'react' to
@@ -113,19 +119,26 @@ app =
 main :: IO ()
 main = react app
 
+data AppView =
+  AppView {avNewItemAdder :: HTML
+          ,avToDoList :: HTML
+          ,avHasItems :: Bool
+          ,avToDoSummary :: ToDoSummary
+          ,avToggleAll :: HTML}
+
 -- | The 'appView' function simply stiches together all renderings of child
 -- components into the main HTML of the document. Francium encourages the use
 -- of inline styles, but that requires discipline in making small functions.
 -- Here we see that most of the elements that we're adding content to are
 -- abstract HTML values.
-appView :: HTML -> HTML -> Bool -> HTML -> HTML -> HTML -> HTML -> HTML
-appView newItemAdder toDoList hasItems stateFilter openItemCounter clearCompleted toggleAll =
+appView :: AppView -> HTML
+appView AppView{..} =
   into mainContainer
        [into rootSection
-             (into header [pageTitle,newItemAdder] :
-              if hasItems
-                 then [into toDoSection [toggleAll,toDoList]
-                      ,toDoSummary openItemCounter stateFilter clearCompleted]
+             (into header [pageTitle,avNewItemAdder] :
+              if avHasItems
+                 then [into toDoSection [avToggleAll,avToDoList]
+                      ,toDoSummary avToDoSummary]
                  else [])
        ,pageFooter]
 
@@ -151,6 +164,8 @@ mainContainer =
            backgroundColor (rgb 245 245 245))
        []
 
+-- | The root section contains the application, and gives the distinctive
+-- todo-mvc container look.
 rootSection :: HTML
 rootSection =
   with section
@@ -165,6 +180,21 @@ rootSection =
            backgroundColor (rgb 255 255 255))
        []
 
+-- | The to-do section contains the to-do list, and also overlaps the
+-- "complete all" checkbox.
+toDoSection :: HTML
+toDoSection =
+  with section
+       (style .=
+        do borderTop solid
+                     (px 1)
+                     (rgb 230 230 230)
+           zIndex 2
+           position relative)
+       []
+       
+-- | The page title is a header that shows the user they are viewing the todo-mvc
+-- application.
 pageTitle :: HTML
 pageTitle =
   with h1
@@ -178,8 +208,16 @@ pageTitle =
            position absolute)
        ["todos"]
 
-toDoSummary :: HTML -> HTML -> HTML -> HTML
-toDoSummary openItemCount stateFilter clearCompletedButton =
+-- | The ToDoSummary provides a little information under the to-do list,
+-- allowing the user to either filter the to-do list, see how many incomplete
+-- items they have, and to clear all completed items.
+data ToDoSummary =
+  ToDoSummary {tdsOpenItemCounter :: HTML
+              ,tdsStateFilter :: HTML
+              ,tdsClearCompleted :: HTML}
+
+toDoSummary :: ToDoSummary -> HTML
+toDoSummary ToDoSummary{..} =
   with footer
        (style .=
         do borderTopColor (rgb 230 230 230)
@@ -206,9 +244,9 @@ toDoSummary openItemCount stateFilter clearCompletedButton =
                    ,(px 0,px 17,px 2,px (-6),rgba 0 0 0 50)]
                  overflow hidden)
              []
-       ,openItemCount
-       ,stateFilter
-       ,clearCompletedButton
+       ,tdsOpenItemCounter
+       ,tdsStateFilter
+       ,tdsClearCompleted
        ,with button
              (style .=
               do verticalAlign baseline
@@ -281,17 +319,6 @@ pageFooter =
                          at "href" ?=
                          "http://todomvc.com")
                    ["TodoMVC"]]]
-
-toDoSection :: HTML
-toDoSection =
-  with section
-       (style .=
-        do borderTop solid
-                     (px 1)
-                     (rgb 230 230 230)
-           zIndex 2
-           position relative)
-       []
 
 boxShadows4 :: [(Size a, Size a, Size a, Size a, Color)] -> Css
 boxShadows4 =

@@ -1,13 +1,15 @@
-{-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module ToDoItem where
 
+import IdiomExp
 import Data.Monoid ((<>))
 import Clay ((-:))
 import Clay.Time
@@ -28,7 +30,7 @@ import Control.Monad.Trans.State.Strict (execState)
 import Data.Bool (bool)
 import Francium
 import Francium.Component
-import Francium.HTML hiding (b, em, pre)
+import Francium.HTML hiding (b, em, i, pre)
 import GHC.Generics
 import GHCJS.Foreign
 import GHCJS.Types
@@ -93,7 +95,7 @@ instance Component ToDoItem where
                             ,const Viewing <$
                              switchToViewing])
            showDestroy =
-             liftA2 (&&) (fmap (Viewing ==) state) isHoveringRow
+             $(i [| $(i [| pure Viewing == state |]) && isHoveringRow |])
            itemValue =
              TextInput.value (outputs textInput)
            selfDestruct =

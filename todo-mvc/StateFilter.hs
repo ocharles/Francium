@@ -3,26 +3,28 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecursiveDo #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module StateFilter (StateFilter(..), stateFilterF) where
 
 import Anchor
-import Clay.Common
-import Clay.Size
-import Clay.Color
-import Clay.Display
-import Clay.Geometry
 import Clay.Border
-import Clay.Text
+import Clay.Color
+import Clay.Common
+import Clay.Display
 import Clay.Font
+import Clay.Geometry
 import Clay.List
+import Clay.Size
+import Clay.Text
 import Control.Lens ((.=))
 import Control.Monad.Trans.State.Strict (execState)
 import Data.Traversable (for)
 import Francium
 import Francium.Component
-import Francium.HTML
+import Francium.HTML hiding (i)
 import HoverObserver
+import IdiomExp
 import Prelude hiding (div, span)
 import Reactive.Banana
 import ToDoItem (Status(..))
@@ -101,21 +103,19 @@ instance Component FilterSelector where
        baseAnchor <-
          construct (Anchor [text (show (filterType fc))])
        let selectionState =
-             liftA2 (\isHovering isSelected ->
-                       if isSelected
-                          then Selected
-                          else if isHovering
-                                  then Hover
-                                  else NoSelection)
-                    isHovering
-                    (isActive fc)
+             $(i [|case $(i [|(isActive fc,isHovering)|]) of
+                     (True,_) -> Selected
+                     (_,True) -> Hover
+                     (_,False) -> NoSelection|])
        return Instantiation {outputs =
                                FilterOutput {filterClicked =
                                                filterType fc <$
                                                clicked (outputs baseAnchor)}
                             ,render =
-                               fmap (applyHooks hoverHook)
-                                    (liftA2 renderStateSelector selectionState (render baseAnchor))}
+                               $(i [|applyHooks
+                                       (pure hoverHook)
+                                       $(i [|renderStateSelector selectionState
+                                                                 (render baseAnchor)|])|])}
     where renderStateSelector selectionState =
             execState (style .=
                        do borderWidth (px 1)
