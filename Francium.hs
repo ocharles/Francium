@@ -64,7 +64,7 @@ import Prelude hiding (div, mapM, sequence)
 
 import Data.Profunctor
 import Francium.DOMEvent
-import Francium.HTML (HTML, div, newTopLevelContainer, renderTo, with, into)
+import Francium.HTML (HTML, div, bodyContainer, newTopLevelContainer, renderTo, with, into)
 import Francium.Tidings
 import Control.Applicative
 import Control.Monad.IO.Class
@@ -77,12 +77,12 @@ import Control.Lens (at, (?=))
 --------------------------------------------------------------------------------
 react :: (forall t. Frameworks t => Moment t (Behavior t HTML)) -> IO ()
 react app = do
-  container <- newTopLevelContainer
+  container <- bodyContainer
 
   _ <- initDomDelegator
 
   eventNetwork <- compile $ do
-    document <- fmap (with div (HTML.attrs . at "style" ?= "min-height: 100%; height: 100%;") . pure) <$> app
+    document <- app
     initial document >>= liftIO . renderTo container
     documentChanged <- changes document
     reactimate' $ fmap (renderTo container) <$> documentChanged

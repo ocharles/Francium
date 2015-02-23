@@ -336,11 +336,11 @@ foreign import javascript unsafe
 
 foreign import javascript unsafe
   "window.virtualDom.patch($1, $2)"
-  patch :: Element -> JSRef Diff -> IO ()
+  patch :: Element -> JSRef Diff -> IO Element
 
 --------------------------------------------------------------------------------
 -- An element in the DOM that we can render virtualdom elements to
-data VNodePresentation = VNodePresentation (IORef HTML) Element
+data VNodePresentation = VNodePresentation (IORef HTML) (IORef Element)
 
 -- Render our internal HTML tree representation into a VNode. We first
 -- convert our HTML into a VTree, and then diff this against the container
@@ -349,7 +349,8 @@ renderTo :: VNodePresentation -> HTML -> IO ()
 renderTo (VNodePresentation ioref el) !e = do
   oldVnode <- readIORef ioref
   patches <- diff oldVnode e
-  patch el patches
+  el' <- readIORef el
+  writeIORef el =<< patch el' patches
   writeIORef ioref e
 
 newTopLevelContainer :: IO VNodePresentation
@@ -360,7 +361,8 @@ newTopLevelContainer = do
   Just doc <- currentDocument
   Just bodyNode <- documentGetBody doc
   _ <- nodeAppendChild bodyNode (Just el)
-  return (VNodePresentation currentVNode el)
+  currentElement <- newIORef el
+  return (VNodePresentation currentVNode currentElement)
 
 bodyContainer :: IO VNodePresentation
 bodyContainer = do
@@ -368,4 +370,5 @@ bodyContainer = do
   currentVNode <- newIORef initialVNode
   Just doc <- currentDocument
   Just bodyNode <- documentGetBody doc
-  return (VNodePresentation currentVNode (toElement bodyNode))
+  currentElement <- newIORef (toElement bodyNode)
+  return (VNodePresentation currentVNode currentElement)
