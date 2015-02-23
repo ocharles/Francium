@@ -35,7 +35,6 @@ import GHCJS.Types
 import HoverObserver
 import KeyPressObserver
 import Prelude hiding (div, map, span)
-import PureComponent
 import Reactive.Banana
 import TextInput
 import TrackFocus
@@ -66,7 +65,6 @@ instance Component ToDoItem where
                                                      steppedContent :: behavior JSString}
   construct toDoItem =
     do (hookHoverContainer,isHoveringRow) <- newHoverObserver
-       container <- construct (PureComponent div)
        (hookKeyPresses,keyPressed) <- newKeyPressObserver
        (hookFocus,lostFocus) <- newFocusTracker
        textInput <-
@@ -105,8 +103,7 @@ instance Component ToDoItem where
              Instantiation {render =
                               itemRenderer click <$> render destroyButton <*>
                               render statusCheckbox <*>
-                              fmap (applyHooks hookHoverContainer)
-                                   (render container) <*>
+                              pure (applyHooks hookHoverContainer div) <*>
                               showDestroy <*>
                               state <*>
                               fmap (applyHooks (hookKeyPresses <> hookFocus))

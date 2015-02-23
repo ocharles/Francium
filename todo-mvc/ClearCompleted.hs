@@ -13,7 +13,6 @@ import Francium
 import Francium.Component
 import Francium.HTML hiding (b, html)
 import HoverObserver
-import PureComponent
 
 data ClearCompleted t =
   ClearCompleted
@@ -22,15 +21,13 @@ instance Component ClearCompleted where
   data Output behavior event
        ClearCompleted = ClearCompletedOutput{clearCompleted :: event ()}
   construct _ =
-    do (hookHover, isHovering) <- newHoverObserver
-       b <-
-         construct (PureComponent button)
+    do (hookHover,isHovering) <- newHoverObserver
        click <- newDOMEvent
        return Instantiation {outputs =
                                ClearCompletedOutput {clearCompleted = domEvent click}
                             ,render =
-                               liftA2 (\h html ->
-                                         with html
+                               fmap (\h ->
+                                         with button
                                               (do style .=
                                                     (do float floatRight
                                                         position relative
@@ -39,5 +36,4 @@ instance Component ClearCompleted where
                                                         cursor pointer)
                                                   onClick click)
                                               ["Clear Completed"])
-                                      isHovering
-                                      (render b)}
+                                      isHovering}
