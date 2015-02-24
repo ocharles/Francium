@@ -1,0 +1,62 @@
+#+TITLE: Francium
+
+Francium is a [[http://haskell.org][Haskell]] library to help build interactive applications
+that run in the web browser. Francium applications use [[https://github.com/ghcjs/ghcjs][GHCJS]] to
+compile Haskell to Javascript, allowing one to use all the Haskell
+libraries and extensions they are already familiar with.
+
+In terms of paradigms, Francium uses [[https://wiki.haskell.org/reactive-banana][reactive-banana]] as its underlying
+FRP framework, and follows in the style of [[https://facebook.github.io/react][React]] for rendering. Users
+build their application by describing a network of discrete events and
+continuously varying behaviours - influenced by those events - in
+order to finally produce interactive HTML.
+
+As a small example of a Francium application, below demonstrates a
+basic counter application, allowing the user to increment and
+decrement a counter.
+
+#+BEGIN_SRC haskell
+  import Francium
+  import Francium.HTML
+
+  main :: IO ()
+  main = react counterApp
+
+  counterApp :: Frameworks t => Moment t (Behavior t HTML)
+  counterApp =
+    do
+       -- We register two hooks to observe the users interaction with our
+       -- application. 'clickHook' provides us with an event that occurs whenever
+       -- the target element is clicked, and a hook that we can bind to clickable
+       -- elements.
+       (increment,incrHook) <- clickHook
+       (decement,decrHook) <- clickHook
+       -- We fold over the stream of all increment and decement events to produce
+       -- a single time varying integer. Whenever @increment@ happens, we add 1
+       -- and whenever @decrement@ happens we substract 1.
+       let counter =
+             accumB (0 :: Int)
+                    (unions [fmap (const (+ 1)) increment
+                            ,fmap (const (substract 1)) decrement])
+       -- Finally, we produce a time varying HTML fragment. To do so, we transform
+       -- the counter value - an 'Int' - into a 'HTML' fragment. We do this by
+       -- using 'fmap'. 'fmap' takes a function that views the counter value, and
+       -- we use "Francium.HTML" to produce a HTML tree. 
+       return (fmap (\n ->
+                       into body
+                            [into h1 ["Counter"]
+                             -- Here we render the counter, by 'show'ing the value
+                             -- of @n@.
+                            ,into p
+                                  ["The counter currently reads: ",text (show n)]
+                             -- Here we build the increment and decrement buttons
+                             -- and apply the necessary hooks.
+                            ,applyHooks decrHook
+                                        (into button "-1")
+                            ,"/"
+                            ,applyHooks incrHook
+                                        (into button "-1")])
+                    counter)
+#+END_SRC
+
+For a more detailed example, see the =todo-mvc= example in this repository.
