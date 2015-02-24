@@ -2,6 +2,8 @@ name: francium
 version: 0.1
 build-type: Simple
 cabal-version: >= 1.20
+license: BSD3
+license-file: LICENSE
 
 library
   build-depends:
