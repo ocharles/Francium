@@ -12,6 +12,7 @@ import GHC.Generics
 import Reactive.Banana
 import Reactive.Banana.Frameworks
 import Francium.HTML
+import VirtualDom.Prim
 
 -- | A 'Component' is a time-varying user interface element. Components expose
 -- two elements of public information:

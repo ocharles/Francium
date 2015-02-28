@@ -60,19 +60,19 @@ module Francium
   , lmap, dimap
   ) where
 
-import Prelude hiding (div, mapM, sequence)
-
+import Control.Applicative
+import Control.Lens (at, (?=))
+import Control.Monad.IO.Class
 import Data.Profunctor
 import Francium.DOMEvent
-import Francium.HTML (HTML, div, bodyContainer, newTopLevelContainer, renderTo, with, into)
 import Francium.Tidings
-import Control.Applicative
-import Control.Monad.IO.Class
 import GHCJS.Types
+import Prelude hiding (div, mapM, sequence)
 import Reactive.Banana
 import Reactive.Banana.Frameworks
+import VirtualDom
+import VirtualDom.Prim
 import qualified Francium.HTML as HTML
-import Control.Lens (at, (?=))
 
 --------------------------------------------------------------------------------
 react :: (forall t. Frameworks t => Moment t (Behavior t HTML)) -> IO ()
@@ -88,14 +88,3 @@ react app = do
     reactimate' $ fmap (renderTo container) <$> documentChanged
 
   actuate eventNetwork
-
---------------------------------------------------------------------------------
-data DOMDelegator
-
-#ifndef HLINT
-
-foreign import javascript unsafe
-  "console.log('Initializing dom-delegator'); var dd = DOMDelegator(); dd.listenTo('mouseenter'); dd.listenTo('mouseleave'); $r = dd;"
-  initDomDelegator :: IO (JSRef DOMDelegator)
-
-#endif
