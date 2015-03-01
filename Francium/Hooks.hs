@@ -75,7 +75,7 @@ newKeyPressHook =
                     (\e ->
                        do t <- fromJSRef e
                           for_ t
-                               (uiEventGetCharCode .
+                               (uiEventGetKeyCode .
                                 -- A little messy, but we're working with a dom-delegator 'KeyEvent' here.
                                 (unsafeCastGObject :: GObject -> UIEvent) .
                                 toGObject >=>
