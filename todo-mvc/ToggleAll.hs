@@ -3,9 +3,8 @@
 
 module ToggleAll where
 
-import Clay hiding (all, render, style, type_)
+import Clay hiding (all, checked, render, style, type_)
 import Control.Lens ((?=), (.=))
-import Control.Monad (when)
 import Data.Bool
 import Francium
 import Francium.Component
@@ -44,6 +43,6 @@ instance Component ToggleAll where
                                                      top (px (-55))
                                                      position absolute
                                                      backgroundImage none
-                                                when c (checked_ ?= "checked"))
+                                                checked .= c)
                                             [])
                                     allComplete}

@@ -9,7 +9,7 @@
 
 module ToDoItem where
 
-import Clay hiding (i, pre, render, style, type_)
+import Clay hiding (checked, i, pre, render, style, type_)
 import Clay.Text (pre)
 import Control.Lens ((?=), (.=), at, over)
 import Control.Monad (void)
@@ -30,7 +30,7 @@ import TextInput
 import VirtualDom
 import VirtualDom.Prim
 import VirtualDom.HTML.Attributes hiding (label_)
- 
+
 data Status = Complete | Incomplete
   deriving (Bounded, Enum, Eq, Ord, Show)
 
@@ -329,10 +329,7 @@ instance Component ToDoCheckbox where
                             ,render =
                                fmap (\b ->
                                        with (applyHooks clickHook input_)
-                                            (do checked_ .=
-                                                  if b
-                                                     then Just "checked"
-                                                     else Nothing
+                                            (do checked .= b
                                                 type_ ?= "checkbox")
                                             [])
                                     isChecked}
