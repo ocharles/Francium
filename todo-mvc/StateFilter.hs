@@ -7,7 +7,6 @@
 
 module StateFilter (StateFilter(..), stateFilterF) where
 
-import Anchor
 import Clay.Border
 import Clay.Color
 import Clay.Common
@@ -19,6 +18,7 @@ import Clay.Size
 import Clay.Text
 import Control.Lens ((.=), over)
 import Control.Monad.Trans.State.Strict (execState)
+import Data.Monoid ((<>))
 import Data.Traversable (for)
 import Francium
 import Francium.Component
@@ -103,22 +103,21 @@ instance Component FilterSelector where
        FilterSelector = FilterOutput{filterClicked :: event Filter}
   construct fc =
     do (hoverHook,isHovering) <- newHoverObserver
-       baseAnchor <-
-         construct (Anchor [text (show (filterType fc))])
+       (clickHook,clicked) <- newClickHook
        let selectionState =
              $(i [|case $(i [|(isActive fc,isHovering)|]) of
                      (True,_) -> Selected
                      (_,True) -> Hover
                      (_,False) -> NoSelection|])
        return Instantiation {outputs =
-                               FilterOutput {filterClicked =
-                                               filterType fc <$
-                                               clicked (outputs baseAnchor)}
+                               FilterOutput {filterClicked = filterType fc <$
+                                                             clicked}
                             ,render =
                                $(i [|applyHooks
-                                       (pure hoverHook)
-                                       $(i [|renderStateSelector selectionState
-                                                                 (render baseAnchor)|])|])}
+                                       (pure (hoverHook <> clickHook))
+                                       $(i [|renderStateSelector
+                                               selectionState
+                                               (pure (into a_ [text (show (filterType fc))]))|])|])}
     where renderStateSelector selectionState =
             over _HTMLElement
                  (execState (style .=
