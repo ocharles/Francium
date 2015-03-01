@@ -3,18 +3,8 @@
 {-# LANGUAGE RecursiveDo #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-import Clay.Background
-import Clay.Border
-import Clay.Box
-import Clay.Color
-import Clay.Common as Css
-import Clay.Display
-import Clay.Font
-import Clay.Geometry
-import Clay.Property
-import Clay.Size
-import Clay.Stylesheet
-import Clay.Text
+import Clay hiding (i, map, render, style)
+import Clay.Stylesheet (prefixed)
 import ClearCompleted
 import Control.Lens ((?=), (.=))
 import Control.Monad

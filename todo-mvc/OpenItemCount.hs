@@ -3,10 +3,7 @@
 
 module OpenItemCount where
 
-import Clay.Background
-import Clay.Display
-import Clay.Font
-import Clay.Text
+import Clay hiding (filter, render, style)
 import Control.Lens ((.=))
 import Francium
 import Francium.Component

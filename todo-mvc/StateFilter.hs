@@ -7,15 +7,7 @@
 
 module StateFilter (StateFilter(..), stateFilterF) where
 
-import Clay.Border
-import Clay.Color
-import Clay.Common
-import Clay.Display
-import Clay.Font
-import Clay.Geometry
-import Clay.List
-import Clay.Size
-import Clay.Text
+import Clay hiding (Filter, for, i, render, style) 
 import Control.Lens ((.=), over)
 import Control.Monad.Trans.State.Strict (execState)
 import Data.Monoid ((<>))

@@ -9,19 +9,8 @@
 
 module ToDoItem where
 
-import Clay ((-:))
-import Clay.Background
-import Clay.Border
-import Clay.Box
-import Clay.Color
-import Clay.Common as Css
-import Clay.Display
-import Clay.Font
-import Clay.Geometry
-import Clay.Size
-import Clay.Text
-import Clay.Time
-import Clay.Transition
+import Clay hiding (i, pre, render, style, type_)
+import Clay.Text (pre)
 import Control.Lens ((?=), (.=), at, over)
 import Control.Monad (void)
 import Control.Monad.Trans.State.Strict (execState)

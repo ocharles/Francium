@@ -3,11 +3,7 @@
 
 module ClearCompleted where
 
-import Clay.Common
-import Clay.Display
-import Clay.Font
-import Clay.Size
-import Clay.Text
+import Clay hiding (render, style)
 import Control.Lens ((.=))
 import Francium
 import Francium.Component

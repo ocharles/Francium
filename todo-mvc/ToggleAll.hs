@@ -3,13 +3,7 @@
 
 module ToggleAll where
 
-import Clay.Background
-import Clay.Border
-import Clay.Common as Css hiding (all)
-import Clay.Display
-import Clay.Geometry
-import Clay.Size
-import Clay.Text
+import Clay hiding (all, render, style, type_)
 import Control.Lens ((?=), (.=))
 import Control.Monad (when)
 import Data.Bool

@@ -5,14 +5,7 @@
 
 module ToDoList where
 
-import Clay.Border
-import Clay.Color
-import Clay.Common as Css
-import Clay.Display
-import Clay.Font
-import Clay.Geometry
-import Clay.List
-import Clay.Size
+import Clay hiding (for, filter, i, id, map, render, style)
 import Control.Arrow ((&&&))
 import Control.Lens ((.=))
 import Data.Maybe
