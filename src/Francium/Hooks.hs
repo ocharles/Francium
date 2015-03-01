@@ -84,12 +84,12 @@ newKeyPressHook =
           ,ev))
        newEvent
 
--- | The mount hook emits an event whenever the attached HTML element is added
--- to the DOM.
-newMountHook :: Frameworks t => Moment t (Hook, Event t (JSRef DOM.HTMLElement))
-newMountHook =
+-- | The render hook emits an event whenever the 'HTML' it is applied to is
+-- rendered to the DOM.
+newRenderHook :: Frameworks t => Moment t (Hook, Event t (JSRef DOM.HTMLElement))
+newRenderHook =
   fmap (\(ev,handler) ->
-          (Hook (registerHook "mount"
+          (Hook (registerHook "render"
                               (\el _ -> handler el))
           ,ev))
        newEvent
