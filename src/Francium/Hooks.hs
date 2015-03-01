@@ -7,6 +7,7 @@ module Francium.Hooks where
 import Control.Lens
 import Control.Monad.State (MonadState)
 import Control.Monad.Trans.State.Strict
+import Data.Monoid ((<>))
 import GHCJS.DOM.Event (eventGetTarget)
 import GHCJS.DOM.HTMLInputElement
 import GHCJS.DOM.Types (GObject, toGObject, unsafeCastGObject)
@@ -93,3 +94,16 @@ newRenderHook =
                               (\el _ -> handler el))
           ,ev))
        newEvent
+
+newHoverHook :: Frameworks t => Moment t (Hook, Behavior t Bool)
+newHoverHook =
+  do (mouseOverHook,mouseOver) <- newMouseOverHook
+     (mouseOutHook,mouseOut) <- newMouseOutHook
+     let mouseHovering =
+           accumB False
+                  ((const True <$
+                    mouseOver) `union`
+                   (const False <$
+                    mouseOut))
+         hook = mouseOverHook <> mouseOutHook
+     return (hook,mouseHovering)

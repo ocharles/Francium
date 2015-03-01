@@ -24,7 +24,6 @@ import Francium
 import Francium.Component
 import Francium.HTML
 import Francium.Hooks
-import HoverObserver
 import IdiomExp
 import Prelude hiding (div, span)
 import Reactive.Banana
@@ -102,7 +101,7 @@ instance Component FilterSelector where
   data Output behavior event
        FilterSelector = FilterOutput{filterClicked :: event Filter}
   construct fc =
-    do (hoverHook,isHovering) <- newHoverObserver
+    do (hoverHook,isHovering) <- newHoverHook
        (clickHook,clicked) <- newClickHook
        let selectionState =
              $(i [|case $(i [|(isActive fc,isHovering)|]) of

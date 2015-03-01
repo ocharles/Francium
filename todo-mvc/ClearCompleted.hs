@@ -13,7 +13,6 @@ import Francium
 import Francium.Component
 import Francium.HTML
 import Francium.Hooks
-import HoverObserver
 import VirtualDom.HTML
 
 data ClearCompleted t =
@@ -23,7 +22,7 @@ instance Component ClearCompleted where
   data Output behavior event
        ClearCompleted = ClearCompletedOutput{clearCompleted :: event ()}
   construct _ =
-    do (hoverHook,isHovering) <- newHoverObserver
+    do (hoverHook,isHovering) <- newHoverHook
        (clickHook,click) <- newClickHook
        return Instantiation {outputs =
                                ClearCompletedOutput {clearCompleted = click}

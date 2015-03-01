@@ -34,7 +34,6 @@ import Francium.Hooks
 import GHC.Generics
 import GHCJS.Foreign
 import GHCJS.Types
-import HoverObserver
 import IdiomExp
 import Prelude hiding (div, map, span)
 import Reactive.Banana
@@ -69,7 +68,7 @@ instance Component ToDoItem where
                                                      destroy :: event (),
                                                      steppedContent :: behavior JSString}
   construct toDoItem =
-    do (hookHoverContainer,isHoveringRow) <- newHoverObserver
+    do (hookHoverContainer,isHoveringRow) <- newHoverHook
        (hookKeyPresses,keyPressed) <- newKeyPressHook
        (hookFocus,lostFocus) <- newFocusTracker
        (clickHook,click) <- newClickHook
