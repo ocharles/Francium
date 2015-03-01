@@ -16,7 +16,9 @@ import Data.Bool
 import Francium
 import Francium.Component
 import Francium.HTML
+import Francium.Hooks
 import ToDoItem (Status(..))
+import VirtualDom
 
 data ToggleAll t =
   ToggleAll {items :: Behavior t [Status]}
@@ -28,15 +30,15 @@ instance Component ToggleAll where
     do let allComplete =
              fmap (all (== Complete))
                   (items tAll)
-       toggle <- newDOMEvent
+       (clickHook,toggle) <- newClickHook
        return Instantiation {outputs =
                                ToggleAllOut
                                  (fmap (bool Complete Incomplete)
-                                       (allComplete <@ domEvent toggle))
+                                       (allComplete <@ toggle))
                             ,render =
                                fmap (\c ->
-                                       with input
-                                            (do attrs .
+                                       with (applyHooks clickHook input_)
+                                            (do attributes .
                                                   at "type" ?=
                                                   "checkbox"
                                                 style .=
@@ -49,9 +51,8 @@ instance Component ToggleAll where
                                                      top (px (-55))
                                                      position absolute
                                                      backgroundImage none
-                                                onClick toggle
                                                 when c
-                                                     (attrs .
+                                                     (attributes .
                                                       at "checked" ?=
                                                       "checked"))
                                             [])

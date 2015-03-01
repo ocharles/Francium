@@ -21,6 +21,7 @@ library
   exposed-modules:
     Francium
     Francium.Component
+    Francium.Hooks
     Francium.HTML
     Francium.DOMEvent
     Francium.CSS

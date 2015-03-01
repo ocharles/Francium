@@ -9,37 +9,40 @@
 
 module ToDoItem where
 
-import IdiomExp
-import Data.Monoid ((<>))
 import Clay ((-:))
-import Clay.Time
 import Clay.Background
 import Clay.Border
 import Clay.Box
 import Clay.Color
-import Clay.Transition
 import Clay.Common as Css
 import Clay.Display
-import Clay.Text
 import Clay.Font
 import Clay.Geometry
 import Clay.Size
-import Control.Lens ((?=), (.=), at)
+import Clay.Text
+import Clay.Time
+import Clay.Transition
+import Control.Lens ((?=), (.=), at, over)
 import Control.Monad (void)
 import Control.Monad.Trans.State.Strict (execState)
 import Data.Bool (bool)
+import Data.Monoid ((<>))
 import Francium
 import Francium.Component
-import Francium.HTML hiding (b, em, i, pre)
+import Francium.HTML
+import Francium.Hooks
 import GHC.Generics
 import GHCJS.Foreign
 import GHCJS.Types
 import HoverObserver
+import IdiomExp
 import KeyPressObserver
 import Prelude hiding (div, map, span)
 import Reactive.Banana
 import TextInput
 import TrackFocus
+import VirtualDom
+import VirtualDom.Prim
 
 data Status = Complete | Incomplete
   deriving (Bounded, Enum, Eq, Ord, Show)
@@ -69,6 +72,7 @@ instance Component ToDoItem where
     do (hookHoverContainer,isHoveringRow) <- newHoverObserver
        (hookKeyPresses,keyPressed) <- newKeyPressObserver
        (hookFocus,lostFocus) <- newFocusTracker
+       (clickHook,click) <- newClickHook
        textInput <-
          construct (TextInput (initialContent toDoItem) never)
        destroyButton <-
@@ -80,10 +84,8 @@ instance Component ToDoItem where
                           Complete -> True)
                        (setStatus toDoItem)
             construct (ToDoCheckbox toggle)
-       click <- newDOMEvent
        let switchToEditing =
-             whenE ((Viewing ==) <$> state)
-                   (domEvent click)
+             whenE ((Viewing ==) <$> state) click
            switchToViewing =
              whenE (fmap (Editing ==) state)
                    (unions [lostFocus
@@ -95,7 +97,9 @@ instance Component ToDoItem where
                             ,const Viewing <$
                              switchToViewing])
            showDestroy =
-             $(i [| $(i [| pure Viewing == state |]) && isHoveringRow |])
+             $(i [|$(i [|pure Viewing ==
+                         state|]) &&
+                   isHoveringRow|])
            itemValue =
              TextInput.value (outputs textInput)
            selfDestruct =
@@ -103,9 +107,9 @@ instance Component ToDoItem where
                     ,whenE (fmap isEmptyString itemValue) switchToViewing]
            self =
              Instantiation {render =
-                              itemRenderer click <$> render destroyButton <*>
+                              itemRenderer clickHook <$> render destroyButton <*>
                               render statusCheckbox <*>
-                              pure (applyHooks hookHoverContainer div) <*>
+                              pure (applyHooks hookHoverContainer div_) <*>
                               showDestroy <*>
                               state <*>
                               fmap (applyHooks (hookKeyPresses <> hookFocus))
@@ -131,23 +135,23 @@ instance Component ToDoItem where
                   case state of
                     Viewing ->
                       [with svg
-                            (do attrs .
+                            (do attributes .
                                   at "width" ?=
                                   "40"
-                                attrs .
+                                attributes .
                                   at "height" ?=
                                   "40"
-                                attrs .
+                                attributes .
                                   at "viewBox" ?=
                                   "-10 -18 100 135")
                             (case currentStatus of
                                Complete ->
                                  [checkCircle
                                  ,with path
-                                       (do attrs .
+                                       (do attributes .
                                              at "fill" ?=
                                              "#5dc2af"
-                                           attrs .
+                                           attributes .
                                              at "d" ?=
                                              "M72 25L42 71 27 56l-4 4 20 20 34-52z")
                                        []]
@@ -157,22 +161,23 @@ instance Component ToDoItem where
                 items =
                   case state of
                     Viewing ->
-                      [with label
+                      [with (applyHooks labelClick label_)
                             (do case currentStatus of
                                   Incomplete -> labelStyle
-                                  Complete -> completeLabelStyle
-                                onClick labelClick)
+                                  Complete -> completeLabelStyle)
                             [text inputValue]
-                      ,execState (if showDestroy
-                                     then buttonStyle
-                                     else hiddenButtonStyle)
-                                 destroyButton]
+                      ,over _HTMLElement
+                            (execState (if showDestroy
+                                           then buttonStyle
+                                           else hiddenButtonStyle))
+                            destroyButton]
                     Editing ->
-                      [execState (do inputStyle
-                                     takesFocus)
-                                 textInput]
+                      [over _HTMLElement
+                            (execState inputStyle)
+                            --takesFocus) XXX
+                            textInput]
             in into container
-                    (execState checkboxStyle statusCheckbox :
+                    (over _HTMLElement (execState checkboxStyle) statusCheckbox :
                      items)
           inputStyle =
             style .=
@@ -296,27 +301,27 @@ instance Component ToDoItem where
                display none
           checkCircle =
             with circle
-                 (do attrs .
+                 (do attributes .
                        at "cx" ?=
                        "50"
-                     attrs .
+                     attributes .
                        at "cy" ?=
                        "50"
-                     attrs .
+                     attributes .
                        at "r" ?=
                        "50"
-                     attrs .
+                     attributes .
                        at "fill" ?=
                        "none"
-                     attrs .
+                     attributes .
                        at "stroke" ?=
                        "#bddad5"
-                     attrs .
+                     attributes .
                        at "stroke-width" ?=
                        "3")
                  []
           svgElement x =
-            with (emptyElement x)
+            with (emptyElement (x :: JSString))
                  (namespace .= "http://www.w3.org/2000/svg")
                  []
           svg = svgElement "svg"
@@ -332,24 +337,23 @@ instance Component ToDoCheckbox where
   data Output behavior event
        ToDoCheckbox = ToDoCheckboxOutput{toggled :: event Bool}
   construct c =
-    do click <- newDOMEvent
+    do (clickHook,click) <- newClickHook
        let toggled_ =
-             accumE False (unions [not <$ domEvent click,const <$> reset c])
+             accumE False (unions [not <$ click,const <$> reset c])
            isChecked = stepper False toggled_
        return Instantiation {outputs =
                                ToDoCheckboxOutput toggled_
                             ,render =
                                fmap (\b ->
-                                       with input
-                                            (do attrs .
+                                       with (applyHooks clickHook input_)
+                                            (do attributes .
                                                   at "checked" .=
                                                   if b
                                                      then Just "checked"
                                                      else Nothing
-                                                attrs .
+                                                attributes .
                                                   at "type" ?=
-                                                  "checkbox"
-                                                onClick click)
+                                                  "checkbox")
                                             [])
                                     isChecked}
 
@@ -357,8 +361,11 @@ instance Component ToDoCheckbox where
 data Button t = Button [HTML]
 
 instance Component Button where
-  data Output behavior event Button = ButtonOutput { clicked :: event () }
-  construct (Button buttonLabel) = do
-    click <- newDOMEvent
-    return Instantiation { outputs = ButtonOutput (domEvent click)
-                         , render = pure (with button (onClick click) buttonLabel)}
+  data Output behavior event Button = ButtonOutput{clicked ::
+                                                 event ()}
+  construct (Button buttonLabel) =
+    do (clickHook,click) <- newClickHook
+       return Instantiation {outputs =
+                               ButtonOutput click
+                            ,render =
+                               pure (into (applyHooks clickHook button_) buttonLabel)}

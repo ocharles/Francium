@@ -19,12 +19,13 @@ import Data.Maybe
 import Data.Traversable (for)
 import Francium
 import Francium.Component
-import Francium.HTML hiding (i, map)
+import Francium.HTML
 import GHCJS.Foreign
 import GHCJS.Types
 import IdiomExp
 import Reactive.Banana
 import ToDoItem
+import VirtualDom
 import qualified Storage
 
 data ToDoList t =
@@ -94,7 +95,7 @@ instance Component ToDoList where
             destroyItem =
               switchE (fmap (\events ->
                                anyMoment (fmap (unions .
-                                                (zipWith (\i -> (deleteElem i <$))
+                                                (zipWith (\x -> (deleteElem x <$))
                                                          [0 ..]))
                                                (mapM now events)))
                             (fmap (map (ToDoItem.destroy . outputs)) eItemsChanged))
@@ -104,9 +105,9 @@ instance Component ToDoList where
             stableData =
               switchB (pure openingStorage)
                       (fmap (traverse (\item ->
-                                         $(i [| Storage.ToDoItem
-                                                (fmap fromJSString (steppedContent (outputs item)))
-                                                (fmap (== Complete) (status (outputs item))) |])))
+                                         $(i [|Storage.ToDoItem
+                                                 (fmap fromJSString (steppedContent (outputs item)))
+                                                 (fmap (== Complete) (status (outputs item)))|])))
                             eItemsChanged)
         stableDataChanged <- changes stableData
         reactimate' (fmap (fmap Storage.store) stableDataChanged)
@@ -120,7 +121,7 @@ instance Component ToDoList where
 
 itemContainer :: HTML
 itemContainer =
-  with li
+  with li_
        (style .=
         do borderBottomColor (rgb 237 237 237)
            borderBottomStyle none
@@ -131,7 +132,7 @@ itemContainer =
 
 toDoContainer :: HTML
 toDoContainer =
-  with ul
+  with ul_
        (style .=
         do listStyleType none
            sym padding (px 0)
@@ -148,8 +149,8 @@ append x xs = xs ++ [x]
 
 deleteElem :: Int -> [a] -> [a]
 deleteElem _ [] = []
-deleteElem i (x:xs)
-  | i < 0 = xs
-  | i > length xs = xs
-  | i == 0 = xs
-  | otherwise = x : deleteElem (i - 1) xs
+deleteElem j (x:xs)
+  | j < 0 = xs
+  | j > length xs = xs
+  | j == 0 = xs
+  | otherwise = x : deleteElem (j - 1) xs

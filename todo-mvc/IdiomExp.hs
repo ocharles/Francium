@@ -2,10 +2,9 @@
 
 module IdiomExp where
 
-import Control.Applicative
 import Control.Monad
-import Data.List
 import Language.Haskell.TH
+import Prelude hiding (exp)
 
 i :: Q Exp -> Q Exp
 i = runQ >=> go
@@ -16,7 +15,7 @@ i = runQ >=> go
           [|$(go op) <*>
             $(return l) <*>
             $(return r)|]
-        go e@(TupE elems) =
+        go (TupE elems) =
           do names <-
                mapM (\_ -> newName "t") elems
              let lam =
@@ -34,8 +33,8 @@ i = runQ >=> go
              let lam =
                    LamE (map VarP names)
                         (RecConE n
-                                 (zipWith (\(f,_) n ->
-                                             (f,VarE n))
+                                 (zipWith (\(f,_) n' ->
+                                             (f,VarE n'))
                                           exprs
                                           names))
              return (foldl (\l r ->

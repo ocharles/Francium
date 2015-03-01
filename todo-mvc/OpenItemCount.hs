@@ -3,16 +3,18 @@
 
 module OpenItemCount where
 
+import Clay.Background
+import Clay.Display
+import Clay.Font
+import Clay.Text
 import Control.Lens ((.=))
 import Francium
 import Francium.Component
-import Clay.Background
-import Clay.Font
-import Clay.Display
 import Francium.HTML
-import Clay.Text
 import Prelude hiding (span)
 import ToDoItem (Status(..))
+import VirtualDom
+import VirtualDom.Prim
 
 data OpenItemCount t =
   OpenItemCount {items :: Behavior t [Status]}
@@ -27,11 +29,11 @@ instance Component OpenItemCount where
        return Instantiation {outputs = OpenItemCountOutput
                             ,render =
                                fmap (\n ->
-                                       with span
+                                       with span_
                                             (style .=
                                              (do textAlign (alignSide sideLeft)
                                                  float floatLeft))
-                                            [with strong
+                                            [with strong_
                                                   (style .=
                                                    fontWeight (weight 300))
                                                   [text (show n)]

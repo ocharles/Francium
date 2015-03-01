@@ -21,14 +21,15 @@ import Control.Monad
 import Data.Monoid
 import Francium
 import Francium.Component
-import Francium.HTML hiding (em, i, map)
+import Francium.HTML
+import IdiomExp
 import NewItemAdder
 import OpenItemCount
 import Prelude hiding (div, span)
 import StateFilter
 import ToDoList
 import ToggleAll
-import IdiomExp
+import VirtualDom
 
 -- | 'app' defines our TodoMVC clone's top-level definition. To Francium, web
 -- applications are simply time-varying HTML documents, and we can see this from
@@ -135,7 +136,7 @@ appView :: AppView -> HTML
 appView AppView{..} =
   into mainContainer
        [into rootSection
-             (into header [pageTitle,avNewItemAdder] :
+             (into header_ [pageTitle,avNewItemAdder] :
               if avHasItems
                  then [into toDoSection [avToggleAll,avToDoList]
                       ,toDoSummary avToDoSummary]
@@ -146,7 +147,7 @@ appView AppView{..} =
 -- we style the body accordingly.
 mainContainer :: HTML
 mainContainer =
-  with body
+  with body_
        (style .=
         do sym padding (px 0)
            sym2 margin (px 0) auto
@@ -168,7 +169,7 @@ mainContainer =
 -- todo-mvc container look.
 rootSection :: HTML
 rootSection =
-  with section
+  with section_
        (style .=
         do boxShadows
              [(px 0,px 2,px 4,rgba 0 0 0 51),(px 0,px 25,px 50,rgba 0 0 0 25)]
@@ -184,7 +185,7 @@ rootSection =
 -- "complete all" checkbox.
 toDoSection :: HTML
 toDoSection =
-  with section
+  with section_
        (style .=
         do borderTop solid
                      (px 1)
@@ -197,7 +198,7 @@ toDoSection =
 -- application.
 pageTitle :: HTML
 pageTitle =
-  with h1
+  with h1_
        (style .=
         do color (rgba 175 47 47 39)
            textAlign (alignSide sideCenter)
@@ -218,7 +219,7 @@ data ToDoSummary =
 
 toDoSummary :: ToDoSummary -> HTML
 toDoSummary ToDoSummary{..} =
-  with footer
+  with footer_
        (style .=
         do borderTopColor (rgb 230 230 230)
            borderTopStyle solid
@@ -229,7 +230,7 @@ toDoSummary ToDoSummary{..} =
                 (px 10)
                 (px 15)
            color (rgb 119 119 119))
-       [with div
+       [with div_
              (style .=
               do position absolute
                  right (px 0)
@@ -247,7 +248,7 @@ toDoSummary ToDoSummary{..} =
        ,tdsOpenItemCounter
        ,tdsStateFilter
        ,tdsClearCompleted
-       ,with button
+       ,with button_
              (style .=
               do verticalAlign baseline
                  fontSize (pct 100)
@@ -266,7 +267,7 @@ toDoSummary ToDoSummary{..} =
 
 pageFooter :: HTML
 pageFooter =
-  with footer
+  with footer_
        (style .=
         do textAlign (alignSide sideCenter)
            textShadow (px 0)
@@ -279,43 +280,43 @@ pageFooter =
                 (px 65)
                 auto
                 (px 0))
-       [with p
+       [with p_
              (style .=
               lineHeight (1 :: Size Abs))
              ["Double-click to edit a todo"]
-       ,with p
+       ,with p_
              (style .=
               lineHeight (1 :: Size Abs))
              ["Template by "
-             ,with a
+             ,with a_
                    (do style .=
                          do fontWeight (weight 400)
                             textDecorationLine none
-                       attrs .
+                       attributes .
                          at "href" ?=
                          "http://sindresorhus.com")
                    ["Sindre Sorhus"]]
-       ,with p
+       ,with p_
              (style .=
               lineHeight (1 :: Size Abs))
              ["Created by "
-             ,with a
+             ,with a_
                    (do style .=
                          do fontWeight (weight 400)
                             textDecorationLine none
-                       attrs .
+                       attributes .
                          at "href" ?=
                          "http://todomvc.com")
                    ["you"]]
-       ,with p
+       ,with p_
              (style .=
               lineHeight (1 :: Size Abs))
              ["Part of "
-             ,with a
+             ,with a_
                    (do style .=
                          do fontWeight (weight 400)
                             textDecorationLine none
-                       attrs .
+                       attributes .
                          at "href" ?=
                          "http://todomvc.com")
                    ["TodoMVC"]]]

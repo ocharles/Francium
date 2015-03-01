@@ -3,11 +3,13 @@
 
 module TextInput (TextInput(..), TextInput.value) where
 
-import Control.Lens ((?=))
+import Control.Lens ((?=), at)
 import Francium
-import Francium.HTML as HTML
 import Francium.Component
+import Francium.Hooks
 import GHCJS.Types
+import VirtualDom.HTML
+import VirtualDom.Prim
 
 data TextInput t =
   TextInput {initialText :: JSString
@@ -16,16 +18,17 @@ data TextInput t =
 instance Component TextInput where
   data Output b e TextInput = TextInputOutput{value :: b JSString}
   construct ti =
-    do inputEv <- newDOMEvent
+    do (inputHook,inputEv) <- newInputHook
        let itemValue =
              accumB (initialText ti)
-                    ((const <$> domEvent inputEv) `union`
+                    ((const <$> inputEv) `union`
                      (updateText ti))
        return Instantiation {render =
                                fmap (\v ->
-                                       with input
-                                            (do onInput inputEv
-                                                HTML.value ?= v)
+                                       with (applyHooks inputHook input_)
+                                            (properties .
+                                             at "value" ?=
+                                             v)
                                             [])
                                     itemValue
                             ,outputs =

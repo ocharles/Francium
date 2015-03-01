@@ -17,17 +17,20 @@ import Clay.Geometry
 import Clay.List
 import Clay.Size
 import Clay.Text
-import Control.Lens ((.=))
+import Control.Lens ((.=), over)
 import Control.Monad.Trans.State.Strict (execState)
 import Data.Traversable (for)
 import Francium
 import Francium.Component
-import Francium.HTML hiding (i)
+import Francium.HTML
+import Francium.Hooks
 import HoverObserver
 import IdiomExp
 import Prelude hiding (div, span)
 import Reactive.Banana
 import ToDoItem (Status(..))
+import VirtualDom
+import VirtualDom.Prim
 
 --------------------------------------------------------------------------------
 data StateFilter t =
@@ -60,7 +63,7 @@ instance Component StateFilter where
                                            Completed -> (== Complete))
                                         currentState)}
     where container =
-            with ul
+            with ul_
                  (style .=
                   do left (px 0)
                      right (px 0)
@@ -76,7 +79,7 @@ instance Component StateFilter where
                             (px 0))
                  []
           selectorCell =
-            with li (style .= display inline) []
+            with li_ (style .= display inline) []
           initialState = All
 
 --------------------------------------------------------------------------------
@@ -117,23 +120,24 @@ instance Component FilterSelector where
                                        $(i [|renderStateSelector selectionState
                                                                  (render baseAnchor)|])|])}
     where renderStateSelector selectionState =
-            execState (style .=
-                       do borderWidth (px 1)
-                          borderStyle solid
-                          textDecorationLine none
-                          padding (px 3)
-                                  (px 7)
-                                  (px 3)
-                                  (px 7)
-                          margin (px 3)
-                                 (px 3)
-                                 (px 3)
-                                 (px 3)
-                          color inherit
-                          borderColor
-                            (case selectionState of
-                               NoSelection -> transparent
-                               Hover ->
-                                 rgba 175 47 47 26
-                               Selected ->
-                                 rgba 175 47 47 51))
+            over _HTMLElement
+                 (execState (style .=
+                             do borderWidth (px 1)
+                                borderStyle solid
+                                textDecorationLine none
+                                padding (px 3)
+                                        (px 7)
+                                        (px 3)
+                                        (px 7)
+                                margin (px 3)
+                                       (px 3)
+                                       (px 3)
+                                       (px 3)
+                                color inherit
+                                borderColor
+                                  (case selectionState of
+                                     NoSelection -> transparent
+                                     Hover ->
+                                       rgba 175 47 47 26
+                                     Selected ->
+                                       rgba 175 47 47 51)))
