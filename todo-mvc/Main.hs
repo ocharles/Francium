@@ -16,7 +16,7 @@ import Clay.Size
 import Clay.Stylesheet
 import Clay.Text
 import ClearCompleted
-import Control.Lens ((?=), (.=), at)
+import Control.Lens ((?=), (.=))
 import Control.Monad
 import Data.Monoid
 import Francium
@@ -30,6 +30,7 @@ import StateFilter
 import ToDoList
 import ToggleAll
 import VirtualDom
+import VirtualDom.HTML.Attributes
 
 -- | 'app' defines our TodoMVC clone's top-level definition. To Francium, web
 -- applications are simply time-varying HTML documents, and we can see this from
@@ -292,9 +293,7 @@ pageFooter =
                    (do style .=
                          do fontWeight (weight 400)
                             textDecorationLine none
-                       attributes .
-                         at "href" ?=
-                         "http://sindresorhus.com")
+                       href_ ?= "http://sindresorhus.com")
                    ["Sindre Sorhus"]]
        ,with p_
              (style .=
@@ -304,9 +303,7 @@ pageFooter =
                    (do style .=
                          do fontWeight (weight 400)
                             textDecorationLine none
-                       attributes .
-                         at "href" ?=
-                         "http://todomvc.com")
+                       href_ ?= "http://todomvc.com")
                    ["you"]]
        ,with p_
              (style .=
@@ -316,9 +313,7 @@ pageFooter =
                    (do style .=
                          do fontWeight (weight 400)
                             textDecorationLine none
-                       attributes .
-                         at "href" ?=
-                         "http://todomvc.com")
+                       href_ ?= "http://todomvc.com")
                    ["TodoMVC"]]]
 
 boxShadows4 :: [(Size a, Size a, Size a, Size a, Color)] -> Css

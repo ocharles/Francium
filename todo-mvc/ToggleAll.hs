@@ -10,7 +10,7 @@ import Clay.Display
 import Clay.Geometry
 import Clay.Size
 import Clay.Text
-import Control.Lens (at, (?=), (.=))
+import Control.Lens ((?=), (.=))
 import Control.Monad (when)
 import Data.Bool
 import Francium
@@ -19,6 +19,7 @@ import Francium.HTML
 import Francium.Hooks
 import ToDoItem (Status(..))
 import VirtualDom
+import VirtualDom.HTML.Attributes
 
 data ToggleAll t =
   ToggleAll {items :: Behavior t [Status]}
@@ -38,9 +39,7 @@ instance Component ToggleAll where
                             ,render =
                                fmap (\c ->
                                        with (applyHooks clickHook input_)
-                                            (do attributes .
-                                                  at "type" ?=
-                                                  "checkbox"
+                                            (do type_ ?= "checkbox"
                                                 style .=
                                                   do outlineStyle none
                                                      borderStyle none
@@ -51,9 +50,6 @@ instance Component ToggleAll where
                                                      top (px (-55))
                                                      position absolute
                                                      backgroundImage none
-                                                when c
-                                                     (attributes .
-                                                      at "checked" ?=
-                                                      "checked"))
+                                                when c (checked_ ?= "checked"))
                                             [])
                                     allComplete}

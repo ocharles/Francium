@@ -3,12 +3,12 @@
 
 module Anchor where
 
-import Control.Lens ((?=), at)
+import Control.Lens ((?=))
 import Francium
 import Francium.Component
-import Francium.HTML
 import Francium.Hooks
 import VirtualDom
+import VirtualDom.HTML.Attributes
 
 data Anchor t =
   Anchor {content :: [HTML]}
@@ -22,7 +22,5 @@ instance Component Anchor where
                                AnchorOutput {clicked = c}
                             ,render =
                                pure (with (applyHooks clickHook a_)
-                                          (attributes .
-                                           at "href" ?=
-                                           "#/")
+                                          (href_ ?= "#/")
                                           (content anchor))}

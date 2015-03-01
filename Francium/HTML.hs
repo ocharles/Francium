@@ -2,12 +2,7 @@
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE OverloadedStrings #-}
-module Francium.HTML
-  ( attributes
-  , classes
-  , style
-  )
-where
+module Francium.HTML (style) where
 
 import Control.Applicative
 import Control.Lens hiding (aside, children, coerce, pre)
@@ -33,20 +28,6 @@ import qualified Clay
 import qualified Data.Immutable as Immutable
 import qualified Data.Text as T
   
-attributes :: Traversal' HTMLElement Immutable.Map
-attributes f (HTMLElement vNode) =
-  fmap (HTMLElement . setVNodeAttributes vNode)
-       (f (getVNodeAttributes vNode))
-  
-classes :: Traversal' HTMLElement [String]
-classes =
-  attributes .
-  at "class" .
-  anon "" (isEmptyStr . fromJSString) .
-  iso (words . fromJSString)
-      (toJSString . unwords)
-  where isEmptyStr = (== ("" :: String))
-
 style :: Setter' HTMLElement Clay.Css
 style =
   attributes .
@@ -58,14 +39,3 @@ style =
                                                        []
                                                        (f (return ())))))))
   where isEmptyStr = (== ("" :: String))
-
-value :: Traversal' HTMLElement (Maybe JSString)
-value = properties . at "value"
-
-foreign import javascript safe
-  "Immutable.Map($1.properties.attributes)"
-  getVNodeAttributes :: JSRef VNode -> Immutable.Map
-
-foreign import javascript safe
-  "new VNode($1.tagName, Immutable.Map($1.properties).set('attributes', $2).toJS(), $1.children, $1.key, $1.namespace)"
-  setVNodeAttributes :: JSRef VNode -> Immutable.Map -> JSRef VNode

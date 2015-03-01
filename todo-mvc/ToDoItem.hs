@@ -42,7 +42,8 @@ import TextInput
 import TrackFocus
 import VirtualDom
 import VirtualDom.Prim
-
+import VirtualDom.HTML.Attributes hiding (label_)
+ 
 data Status = Complete | Incomplete
   deriving (Bounded, Enum, Eq, Ord, Show)
 
@@ -134,12 +135,8 @@ instance Component ToDoItem where
                   case state of
                     Viewing ->
                       [with svg
-                            (do attributes .
-                                  at "width" ?=
-                                  "40"
-                                attributes .
-                                  at "height" ?=
-                                  "40"
+                            (do width_ ?= "40"
+                                height_ ?= "40"
                                 attributes .
                                   at "viewBox" ?=
                                   "-10 -18 100 135")
@@ -345,14 +342,11 @@ instance Component ToDoCheckbox where
                             ,render =
                                fmap (\b ->
                                        with (applyHooks clickHook input_)
-                                            (do attributes .
-                                                  at "checked" .=
+                                            (do checked_ .=
                                                   if b
                                                      then Just "checked"
                                                      else Nothing
-                                                attributes .
-                                                  at "type" ?=
-                                                  "checkbox")
+                                                type_ ?= "checkbox")
                                             [])
                                     isChecked}
 

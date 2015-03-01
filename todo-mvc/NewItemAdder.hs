@@ -5,17 +5,18 @@
 module NewItemAdder (NewItemAdder(..), addItem) where
 
 import Clay as CSS hiding (render, style)
-import Control.Lens ((?=), (.=), at, over)
+import Control.Lens ((?=), (.=), over)
 import Control.Monad.Trans.State.Strict (execState)
 import Francium
 import Francium.Component
-import Francium.HTML (attributes, style)
+import Francium.HTML (style)
 import Francium.Hooks
 import GHCJS.Types
 import Prelude hiding (div, span)
 import Reactive.Banana
 import TextInput
 import VirtualDom.Prim
+import VirtualDom.HTML.Attributes
 
 -- | The 'NewItemAdder' component allows users to add new items to their to-do
 -- list. Visually, it appears as an <input> box, and fires the 'addItem' event
@@ -27,7 +28,8 @@ instance Component NewItemAdder where
   data Output behavior event NewItemAdder = NewItemOutput{addItem ::
                                                         event JSString}
   construct NewItemAdder =
-    mdo -- Construct an input field component.
+    mdo
+        -- Construct an input field component.
         inputComponent <-
           construct (TextInput {initialText = ""
                                ,updateText =
@@ -36,7 +38,8 @@ instance Component NewItemAdder where
         -- presses a key. Later, we will filter this event stream to only fire
         -- when return is pressed.
         (hookKeyPress,keyPressed) <- newKeyPressHook
-        let -- The keyPressed event gives us an event whenever a key is pressed.
+        let
+            -- The keyPressed event gives us an event whenever a key is pressed.
             -- We only need to know when the user presses return, so we filter
             -- the event stream accordingly.
             returnPressed = listenForReturn keyPressed
@@ -79,12 +82,8 @@ instance Component NewItemAdder where
                      sym margin (px 0)
                      position relative
                      backgroundColor (rgba 0 0 0 0))
-               attributes .
-                 at "placeholder" ?=
-                 "What needs to be done?"
-               attributes .
-                 at "autofocus" ?=
-                 ""
+               placeholder_ ?= "What needs to be done?"
+               autofocus_ ?= ""
 
 listenForReturn :: (Num a, Eq a) => Event t a -> Event t a
 listenForReturn = filterE (== returnKeyCode)
