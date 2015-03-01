@@ -38,7 +38,6 @@ import IdiomExp
 import Prelude hiding (div, map, span)
 import Reactive.Banana
 import TextInput
-import TrackFocus
 import VirtualDom
 import VirtualDom.Prim
 import VirtualDom.HTML.Attributes hiding (label_)
@@ -70,7 +69,7 @@ instance Component ToDoItem where
   construct toDoItem =
     do (hookHoverContainer,isHoveringRow) <- newHoverHook
        (hookKeyPresses,keyPressed) <- newKeyPressHook
-       (hookFocus,lostFocus) <- newFocusTracker
+       (hookFocus,lostFocus) <- newBlurHook
        (clickHook,click) <- newClickHook
        textInput <-
          construct (TextInput (initialContent toDoItem) never)
