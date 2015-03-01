@@ -9,6 +9,7 @@ import Control.Monad.State (MonadState)
 import Control.Monad.Trans.State.Strict
 import GHCJS.DOM.Event (eventGetTarget)
 import GHCJS.DOM.HTMLInputElement
+import GHCJS.DOM.Types (GObject, toGObject, unsafeCastGObject)
 import GHCJS.DOM.UIEvent
 import Data.Foldable
 import Control.Monad
@@ -73,6 +74,11 @@ newKeyPressHook =
           (Hook (on "keypress"
                     (\e ->
                        do t <- fromJSRef e
-                          for_ t (uiEventGetCharCode . castToUIEvent >=> handler)))
+                          for_ t
+                               (uiEventGetCharCode .
+                                -- A little messy, but we're working with a dom-delegator 'KeyEvent' here.
+                                (unsafeCastGObject :: GObject -> UIEvent) .
+                                toGObject >=>
+                                handler)))
           ,ev))
        newEvent
