@@ -17,7 +17,8 @@ decrement a counter.
 
 #+BEGIN_SRC haskell
   import Francium
-  import Francium.HTML
+  import Francium.Hooks
+  import VirtualDom
 
   main :: IO ()
   main = react counterApp
@@ -26,11 +27,11 @@ decrement a counter.
   counterApp =
     do
        -- We register two hooks to observe the users interaction with our
-       -- application. 'clickHook' provides us with an event that occurs whenever
+       -- application. 'newClickHook' provides us with an event that occurs whenever
        -- the target element is clicked, and a hook that we can bind to clickable
        -- elements.
-       (increment,incrHook) <- clickHook
-       (decrement,decrHook) <- clickHook
+       (increment,incrHook) <- newClickHook
+       (decrement,decrHook) <- newClickHook
        -- We fold over the stream of all increment and decrement events to produce
        -- a single time varying integer. Whenever @increment@ happens, we add 1
        -- and whenever @decrement@ happens we subtract 1.
@@ -43,11 +44,11 @@ decrement a counter.
        -- using 'fmap'. 'fmap' takes a function that views the counter value, and
        -- we use "Francium.HTML" to produce a HTML tree. 
        return (fmap (\n ->
-                       into body
-                            [into h1 ["Counter"]
+                       into body_
+                            [into h1_ ["Counter"]
                              -- Here we render the counter, by 'show'ing the value
                              -- of @n@.
-                            ,into p
+                            ,into p_
                                   ["The counter currently reads: ",text (show n)]
                              -- Here we build the increment and decrement buttons
                              -- and apply the necessary hooks.
