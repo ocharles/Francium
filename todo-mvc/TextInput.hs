@@ -1,15 +1,13 @@
-{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecursiveDo #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module TextInput (TextInput(..), TextInput.value) where
 
-import Control.Lens ((?=), at)
 import Francium
 import Francium.Component
-import Francium.Hooks
+import Francium.Components.Form.Input
 import GHCJS.Types
-import VirtualDom.HTML
-import VirtualDom.Prim
 
 data TextInput t =
   TextInput {initialText :: JSString
@@ -18,18 +16,13 @@ data TextInput t =
 instance Component TextInput where
   data Output b e TextInput = TextInputOutput{value :: b JSString}
   construct ti =
-    do (inputHook,inputEv) <- newInputHook
-       let itemValue =
-             accumB (initialText ti)
-                    ((const <$> inputEv) `union`
-                     (updateText ti))
-       return Instantiation {render =
-                               fmap (\v ->
-                                       with (applyHooks inputHook input_)
-                                            (properties .
-                                             at "value" ?=
-                                             v)
-                                            [])
-                                    itemValue
-                            ,outputs =
-                               TextInputOutput itemValue}
+    mdo input <-
+          construct Input {inputValue = value}
+        let value =
+              accumB (initialText ti)
+                     ((const <$>
+                       inputChanged (outputs input)) `union`
+                      (updateText ti))
+        return Instantiation {render = render input
+                             ,outputs =
+                                TextInputOutput value}
