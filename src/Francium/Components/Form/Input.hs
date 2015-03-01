@@ -5,11 +5,15 @@
 module Francium.Components.Form.Input where
 
 import Control.Monad (void)
+import Data.Foldable (for_)
 import Data.Monoid
 import Francium.Component
 import Francium.Hooks
 import GHCJS.DOM.HTMLInputElement
+import GHCJS.DOM.HTMLInputElement
+import GHCJS.DOM.Types (HTMLInputElement, unsafeCastGObject, toGObject)
 import GHCJS.Foreign
+import GHCJS.Marshal
 import GHCJS.Types
 import Reactive.Banana
 import Reactive.Banana.Frameworks
@@ -26,8 +30,11 @@ instance Component Input where
        (renderHook,onRender) <- newRenderHook
        reactimate
          (fmap (\(v,el) ->
-                  ghcjs_dom_html_input_element_set_value (unsafeCoerce el)
-                                                         v)
+                  do r <- fromJSRef el
+                     for_ r
+                          (\e ->
+                             htmlInputElementSetValue (unsafeCastGObject (toGObject e) :: HTMLInputElement)
+                                                      v))
                ((,) <$> inputValue <@> onRender))
        return Instantiation {outputs =
                                InputOutput {inputChanged = onInput}
