@@ -36,7 +36,6 @@ import GHCJS.Foreign
 import GHCJS.Types
 import HoverObserver
 import IdiomExp
-import KeyPressObserver
 import Prelude hiding (div, map, span)
 import Reactive.Banana
 import TextInput
@@ -70,7 +69,7 @@ instance Component ToDoItem where
                                                      steppedContent :: behavior JSString}
   construct toDoItem =
     do (hookHoverContainer,isHoveringRow) <- newHoverObserver
-       (hookKeyPresses,keyPressed) <- newKeyPressObserver
+       (hookKeyPresses,keyPressed) <- newKeyPressHook
        (hookFocus,lostFocus) <- newFocusTracker
        (clickHook,click) <- newClickHook
        textInput <-

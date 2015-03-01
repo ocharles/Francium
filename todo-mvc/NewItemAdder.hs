@@ -12,7 +12,6 @@ import Francium.Component
 import Francium.HTML (attributes, style)
 import Francium.Hooks
 import GHCJS.Types
-import KeyPressObserver
 import Prelude hiding (div, span)
 import Reactive.Banana
 import TextInput
@@ -28,15 +27,16 @@ instance Component NewItemAdder where
   data Output behavior event NewItemAdder = NewItemOutput{addItem ::
                                                         event JSString}
   construct NewItemAdder =
-    mdo
-        -- Construct an input field component.
+    mdo -- Construct an input field component.
         inputComponent <-
           construct (TextInput {initialText = ""
                                ,updateText =
                                   fmap (const (const "")) returnPressed})
-        (hookKeyPress,keyPressed) <- newKeyPressObserver
-        let
-            -- The 'KeyPressObserver' gives us an event whenever a key is pressed.
+        -- We add a new "hook" to the event network to observe whenever the user
+        -- presses a key. Later, we will filter this event stream to only fire
+        -- when return is pressed.
+        (hookKeyPress,keyPressed) <- newKeyPressHook
+        let -- The keyPressed event gives us an event whenever a key is pressed.
             -- We only need to know when the user presses return, so we filter
             -- the event stream accordingly.
             returnPressed = listenForReturn keyPressed
@@ -45,6 +45,7 @@ instance Component NewItemAdder where
             -- provides us with the contents of the text box.
             itemValue =
               TextInput.value (outputs inputComponent)
+        reactimate (fmap print keyPressed)
         return Instantiation {render =
                                 -- To render the component, we simply reskin the
                                 -- TextInput component
