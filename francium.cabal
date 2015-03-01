@@ -25,3 +25,10 @@ library
     Francium.HTML
     Francium.DOMEvent
     Francium.CSS
+    Francium.Components.Form.Input
+  hs-source-dirs: src
+
+executable test
+  build-depends:
+                base >= 4 && < 5, francium, virtual-dom, ghcjs-base
+  main-is: Test.hs

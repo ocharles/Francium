@@ -61,6 +61,7 @@ module Francium
   ) where
 
 import Control.Applicative
+import Data.IORef
 import Control.Lens (at, (?=))
 import Control.Monad.IO.Class
 import Data.Profunctor
@@ -76,15 +77,16 @@ import qualified Francium.HTML as HTML
 
 --------------------------------------------------------------------------------
 react :: (forall t. Frameworks t => Moment t (Behavior t HTML)) -> IO ()
-react app = do
-  container <- bodyContainer
-
-  _ <- initDomDelegator
-
-  eventNetwork <- compile $ do
-    document <- app
-    initial document >>= liftIO . renderTo container
-    documentChanged <- changes document
-    reactimate' $ fmap (renderTo container) <$> documentChanged
-
-  actuate eventNetwork
+react app =
+  do container <- bodyContainer
+     _ <- initDomDelegator
+     initialRender <- newIORef div_
+     eventNetwork <-
+       compile (do document <- app
+                   do html <- initial document
+                      liftIOLater (writeIORef initialRender html)
+                   documentChanged <- changes document
+                   reactimate' (fmap (fmap (renderTo container)) documentChanged))
+     do html <- readIORef initialRender
+        renderTo container html
+     actuate eventNetwork

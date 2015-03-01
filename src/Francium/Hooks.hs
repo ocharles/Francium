@@ -18,6 +18,7 @@ import GHCJS.Types
 import Reactive.Banana
 import Reactive.Banana.Frameworks
 import VirtualDom.Prim
+import qualified GHCJS.DOM.HTMLElement as DOM
 
 data Hook =
   Hook {applyHook :: forall m. MonadState HTMLElement m => m ()}
@@ -80,5 +81,15 @@ newKeyPressHook =
                                 (unsafeCastGObject :: GObject -> UIEvent) .
                                 toGObject >=>
                                 handler)))
+          ,ev))
+       newEvent
+
+-- | The mount hook emits an event whenever the attached HTML element is added
+-- to the DOM.
+newMountHook :: Frameworks t => Moment t (Hook, Event t (JSRef DOM.HTMLElement))
+newMountHook =
+  fmap (\(ev,handler) ->
+          (Hook (registerHook "mount"
+                              (\el _ -> handler el))
           ,ev))
        newEvent
