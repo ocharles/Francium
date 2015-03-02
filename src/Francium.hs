@@ -66,10 +66,13 @@ module Francium
 import Control.Applicative
 import Data.IORef
 import Control.Lens (at, (?=))
+import Control.Monad ((<=<))
 import Control.Monad.IO.Class
 import Data.Profunctor
 import Francium.DOMEvent
 import Francium.Tidings
+import GHCJS.Foreign
+import GHCJS.Marshal
 import GHCJS.Types
 import Prelude hiding (div, mapM, sequence)
 import Reactive.Banana
@@ -81,7 +84,7 @@ import qualified Francium.HTML as HTML
 --------------------------------------------------------------------------------
 react :: (forall t. Frameworks t => Moment t (Behavior t HTML)) -> IO ()
 react app =
-  do container <- bodyContainer
+  do container <- newTopLevelContainer
      _ <- initDomDelegator
      initialRender <- newIORef div_
      eventNetwork <-
