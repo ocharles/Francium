@@ -11,7 +11,6 @@ import Control.Monad.Trans.State.Strict
 import Data.Foldable
 import Data.Function (fix)
 import Data.Monoid ((<>))
-import Debug.Trace
 import GHCJS.DOM.Element (castToElement)
 import GHCJS.DOM.Event (eventGetTarget)
 import GHCJS.DOM.HTMLInputElement
@@ -101,13 +100,11 @@ newRenderHook =
                    fix (\retry (x:xs) ->
                           do m <-
                                use (properties .
-                                    at (toJSString (traceId ("hook-" <> x))))
+                                    at (toJSString ("hook-" <> x)))
                              case m of
                                Nothing ->
                                  return (toJSString x)
-                               Just _ ->
-                                 trace (x ++ " in use")
-                                       (retry xs))
+                               Just _ -> retry xs)
                        ["render" ++ suffix | suffix <-
                                               iterate ('_' :) ""]
                  registerHook
