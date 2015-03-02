@@ -9,7 +9,6 @@ import Control.Monad
 import Data.Monoid
 import Francium
 import Francium.CSS
-import Francium.Component
 import Francium.HTML
 import IdiomExp
 import NewItemAdder
@@ -18,8 +17,6 @@ import Prelude hiding (div, span)
 import StateFilter
 import ToDoList
 import ToggleAll
-import VirtualDom
-import VirtualDom.HTML.Attributes
 
 -- | 'app' defines our TodoMVC clone's top-level definition. To Francium, web
 -- applications are simply time-varying HTML documents, and we can see this from

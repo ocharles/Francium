@@ -5,20 +5,14 @@
 module Francium.Components.Form.Input where
 
 import Control.Monad (void, when)
-import Data.Foldable (for_)
 import Data.Monoid
 import Francium.Component
+import Francium.HTML
 import Francium.Hooks
 import GHCJS.DOM.HTMLInputElement
-import GHCJS.DOM.HTMLInputElement
-import GHCJS.DOM.Types (HTMLInputElement, unsafeCastGObject, toGObject)
-import GHCJS.Foreign
-import GHCJS.Marshal
 import GHCJS.Types
 import Reactive.Banana
 import Reactive.Banana.Frameworks
-import Unsafe.Coerce
-import VirtualDom
   
 data Input t = Input { inputValue :: Behavior t JSString }
 

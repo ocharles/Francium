@@ -5,14 +5,13 @@
 
 module Francium.Component
        (Component(..), Instantiated, trimComponent, FutureInstantiation,
-        TrimOutput(..), Instantiation(..))
+        TrimOutput(..), Instantiation(..), trim)
        where
 
 import GHC.Generics
+import Francium.HTML
 import Reactive.Banana
 import Reactive.Banana.Frameworks
-import Francium.HTML
-import VirtualDom.Prim
 
 -- | A 'Component' is a time-varying user interface element. Components expose
 -- two elements of public information:
@@ -27,10 +26,12 @@ class Component a where
   data Output (behavior :: * -> *) (event :: * -> *) a :: *
   construct :: Frameworks t => a t -> Moment t (Instantiated t a)
 
+  
 -- | A 'Component' instantiated at a known point in time. Users will most commonly
 -- work with 'Instantiated' components, as these are the components we observe
 -- right now.
 type Instantiated t a = Instantiation (Behavior t) (Event t) a
+
 
 -- | A 'Component' can be "trimmed" in order to be used a /future/ point in
 -- time. This construct allows one to switch in new components dynamically.
@@ -41,10 +42,12 @@ type Instantiated t a = Instantiation (Behavior t) (Event t) a
 trimComponent :: TrimOutput a => Instantiated t a -> Moment t (FutureInstantiation a)
 trimComponent (Instantiation r o) = Instantiation <$> trimB r <*> trimOutput o
 
+
 -- | A future instantiation of a component, to be dynamically switched. You can
 -- turn any component into a 'FutureInstantiation' by trimming it with
 -- 'trimComponent'.
 type FutureInstantiation a = Instantiation (AnyMoment Behavior) (AnyMoment Event) a
+
 
 class TrimOutput a  where
   -- | Trim the particular outputs of a component. You will need an instance of
@@ -61,6 +64,7 @@ class TrimOutput a  where
                      => Output (Behavior t) (Event t) a
                      -> Moment t (Output (AnyMoment Behavior) (AnyMoment Event) a)
   trimOutput = fmap to . gtrim . from
+
 
 data Instantiation behavior event a =
   Instantiation {render :: behavior HTML

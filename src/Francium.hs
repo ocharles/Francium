@@ -8,16 +8,19 @@ module Francium
     react
 
     -- * Building HTML trees
-  , HTML, with, into
-  , DOMEvent
-  , newDOMEvent
-  , domEvent
+  , HTML, with, into, text, modifyElement
+
+    -- * Components
+  , Component(..)
+  , render
+  , outputs
 
     -- * 'reactive-banana' re-exports
     -- ** Core Combinators
   , Event
   , Behavior
   , union
+  , unions
   , stepper
   , (<@>)
   , (<@)
@@ -26,6 +29,7 @@ module Francium
   , initial
   , never
   , whenE
+  , filterE
 
     -- ** Network Modifications
   , Moment
@@ -48,12 +52,10 @@ module Francium
   , now
   , switchB
   , switchE
+  , trim
 
-    -- * Bidirectional Components
-  , Tidings
-  , tidings
-  , rumors
-  , facts
+    -- *** Switching Components
+  , trimComponent
 
     -- * Haskell browser functions
   , nextTick
@@ -64,22 +66,18 @@ module Francium
   ) where
 
 import Control.Applicative
-import Data.IORef
-import Control.Lens (at, (?=))
 import Control.Monad ((<=<))
 import Control.Monad.IO.Class
+import Data.IORef
 import Data.Profunctor
-import Francium.DOMEvent
-import Francium.Tidings
+import Francium.Component
+import Francium.HTML
 import GHCJS.Foreign
-import GHCJS.Marshal
 import GHCJS.Types
 import Prelude hiding (div, mapM, sequence)
 import Reactive.Banana
 import Reactive.Banana.Frameworks
 import VirtualDom
-import VirtualDom.Prim
-import qualified Francium.HTML as HTML
 
 --------------------------------------------------------------------------------
 react :: (forall t. Frameworks t => Moment t (Behavior t HTML)) -> IO ()

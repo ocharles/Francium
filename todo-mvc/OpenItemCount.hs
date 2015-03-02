@@ -10,8 +10,6 @@ import Francium.Component
 import Francium.HTML
 import Prelude hiding (span)
 import ToDoItem (Status(..))
-import VirtualDom
-import VirtualDom.Prim
 
 data OpenItemCount t =
   OpenItemCount {items :: Behavior t [Status]}

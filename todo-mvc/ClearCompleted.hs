@@ -9,7 +9,6 @@ import Francium.CSS
 import Francium.Component
 import Francium.HTML
 import Francium.Hooks
-import VirtualDom.HTML
 
 data ClearCompleted t =
   ClearCompleted

@@ -11,8 +11,6 @@ import Francium.Component
 import Francium.HTML
 import Francium.Hooks
 import ToDoItem (Status(..))
-import VirtualDom
-import VirtualDom.HTML.Attributes
 
 data ToggleAll t =
   ToggleAll {items :: Behavior t [Status]}

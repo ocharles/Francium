@@ -4,19 +4,15 @@
 
 module NewItemAdder (NewItemAdder(..), addItem) where
 
-import Control.Lens ((?=), (.=), over)
-import Control.Monad.Trans.State.Strict (execState)
+import Control.Lens ((?=), (.=))
 import Francium
 import Francium.CSS
 import Francium.Component
-import Francium.HTML (style)
+import Francium.HTML
 import Francium.Hooks
 import GHCJS.Types
 import Prelude hiding (div, span)
-import Reactive.Banana
 import TextInput
-import VirtualDom.HTML.Attributes
-import VirtualDom.Prim
 
 -- | The 'NewItemAdder' component allows users to add new items to their to-do
 -- list. Visually, it appears as an <input> box, and fires the 'addItem' event
@@ -54,7 +50,7 @@ instance Component NewItemAdder where
                                 -- TextInput component
                                 fmap
                                   (applyHooks hookKeyPress .
-                                   over _HTMLElement (execState inputAttributes))
+                                   modifyElement inputAttributes)
                                   (render inputComponent)
                              ,outputs =
                                 -- The outputs of this component is an Event

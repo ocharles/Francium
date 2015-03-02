@@ -16,9 +16,7 @@ import Francium.HTML
 import GHCJS.Foreign
 import GHCJS.Types
 import IdiomExp
-import Reactive.Banana
 import ToDoItem
-import VirtualDom
 import qualified Storage
 
 data ToDoList t =
@@ -36,7 +34,7 @@ instance Component ToDoList where
                       (addItem tdi)
         eAddItem <-
           do setStatusesLater <-
-               trimE (setStatuses tdi)
+               trim (setStatuses tdi)
              execute (fmap (\x ->
                               FrameworksMoment
                                 (do setStatuses' <- now setStatusesLater

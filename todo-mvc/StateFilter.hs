@@ -1,14 +1,14 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecursiveDo #-}
-{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module StateFilter (StateFilter(..), stateFilterF) where
 
-import Control.Lens ((.=), over)
-import Control.Monad.Trans.State.Strict (execState)
+import Control.Lens ((.=))
 import Data.Monoid ((<>))
 import Data.Traversable (for)
 import Francium
@@ -18,10 +18,7 @@ import Francium.HTML
 import Francium.Hooks
 import IdiomExp
 import Prelude hiding (div, span)
-import Reactive.Banana
 import ToDoItem (Status(..))
-import VirtualDom
-import VirtualDom.Prim
 
 --------------------------------------------------------------------------------
 data StateFilter t =
@@ -104,30 +101,28 @@ instance Component FilterSelector where
                                FilterOutput {filterClicked = filterType fc <$
                                                              clicked}
                             ,render =
-                               $(i [|applyHooks
-                                       (pure (hoverHook <> clickHook))
-                                       $(i [|renderStateSelector
-                                               selectionState
-                                               (pure (into a_ [text (show (filterType fc))]))|])|])}
+                               $(i [|modifyElement
+                                       $(i [|renderStateSelector selectionState|])
+                                       (pure (into (applyHooks
+                                                      (hoverHook <> clickHook)
+                                                      a_)
+                                                   [text (show (filterType fc))]))|])}
     where renderStateSelector selectionState =
-            over _HTMLElement
-                 (execState (style .=
-                             do borderWidth (px 1)
-                                borderStyle solid
-                                textDecorationLine none
-                                padding (px 3)
-                                        (px 7)
-                                        (px 3)
-                                        (px 7)
-                                margin (px 3)
-                                       (px 3)
-                                       (px 3)
-                                       (px 3)
-                                color inherit
-                                borderColor
-                                  (case selectionState of
-                                     NoSelection -> transparent
-                                     Hover ->
-                                       rgba 175 47 47 26
-                                     Selected ->
-                                       rgba 175 47 47 51)))
+            style .=
+            do borderWidth (px 1)
+               borderStyle solid
+               textDecorationLine none
+               padding (px 3)
+                       (px 7)
+                       (px 3)
+                       (px 7)
+               margin (px 3)
+                      (px 3)
+                      (px 3)
+                      (px 3)
+               color inherit
+               borderColor
+                 (case selectionState of
+                    NoSelection -> transparent
+                    Hover -> rgba 175 47 47 26
+                    Selected -> rgba 175 47 47 51)

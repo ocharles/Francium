@@ -9,9 +9,8 @@
 
 module ToDoItem where
 
-import Control.Lens ((?=), (.=), at, over)
+import Control.Lens ((?=), (.=), at)
 import Control.Monad (void)
-import Control.Monad.Trans.State.Strict (execState)
 import Data.Bool (bool)
 import Data.Monoid ((<>))
 import Francium
@@ -22,15 +21,10 @@ import Francium.Hooks
 import GHC.Generics
 import GHCJS.DOM.Element (elementFocus)
 import GHCJS.Foreign
-import GHCJS.Marshal
 import GHCJS.Types
 import IdiomExp
 import Prelude hiding (div, map, span)
-import Reactive.Banana
 import TextInput
-import VirtualDom
-import VirtualDom.HTML.Attributes hiding (label_)
-import VirtualDom.Prim
 
 data Status = Complete | Incomplete
   deriving (Bounded, Enum, Eq, Ord, Show)
@@ -154,18 +148,18 @@ instance Component ToDoItem where
                                   Incomplete -> labelStyle
                                   Complete -> completeLabelStyle)
                             [text inputValue]
-                      ,over _HTMLElement
-                            (execState (if showDestroy
-                                           then buttonStyle
-                                           else hiddenButtonStyle))
-                            destroyButton]
+                      ,modifyElement
+                         (if showDestroy
+                             then buttonStyle
+                             else hiddenButtonStyle)
+                         destroyButton]
                     Editing ->
-                      [over _HTMLElement
-                            (execState inputStyle)
-                            --takesFocus) XXX
-                            textInput]
+                      [modifyElement
+                         inputStyle
+                         --takesFocus) XXX
+                         textInput]
             in into container
-                    (over _HTMLElement (execState checkboxStyle) statusCheckbox :
+                    (modifyElement checkboxStyle statusCheckbox :
                      items)
           inputStyle =
             style .=

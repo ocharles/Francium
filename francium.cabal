@@ -23,7 +23,6 @@ library
     Francium.CSS
     Francium.Component
     Francium.Components.Form.Input
-    Francium.DOMEvent
     Francium.HTML
     Francium.Hooks
   hs-source-dirs: src

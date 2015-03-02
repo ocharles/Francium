@@ -22,7 +22,6 @@ import GHCJS.Types
 import Reactive.Banana
 import Reactive.Banana.Frameworks
 import VirtualDom.Prim
-import qualified GHCJS.DOM.HTMLElement as DOM
 
 data Hook =
   Hook {applyHook :: forall m. MonadState HTMLElement m => m ()}
@@ -60,17 +59,17 @@ newClickHook =
 
 newInputHook :: Frameworks t => Moment t (Hook, Event t JSString)
 newInputHook =
-  fmap (\(ev,handler) ->
+  fmap (\(event,handler) ->
           (Hook (on "input"
-                    (\ev ->
-                       do t <- fromJSRef ev
+                    (\e ->
+                       do t <- fromJSRef e
                           for_ t
                                (\t' ->
                                   do t'' <- eventGetTarget t'
                                      for_ t''
                                           (htmlInputElementGetValue .
                                            castToHTMLInputElement >=> handler))))
-          ,ev))
+          ,event))
        newEvent
 
 newKeyPressHook :: Frameworks t => Moment t (Hook, Event t Int)
