@@ -21,15 +21,17 @@ import Francium.Component
 import Francium.HTML
 import Francium.Hooks
 import GHC.Generics
+import GHCJS.DOM.Element (elementFocus)
 import GHCJS.Foreign
+import GHCJS.Marshal
 import GHCJS.Types
 import IdiomExp
 import Prelude hiding (div, map, span)
 import Reactive.Banana
 import TextInput
 import VirtualDom
-import VirtualDom.Prim
 import VirtualDom.HTML.Attributes hiding (label_)
+import VirtualDom.Prim
 
 data Status = Complete | Incomplete
   deriving (Bounded, Enum, Eq, Ord, Show)
@@ -60,6 +62,8 @@ instance Component ToDoItem where
        (hookKeyPresses,keyPressed) <- newKeyPressHook
        (hookFocus,lostFocus) <- newBlurHook
        (clickHook,click) <- newClickHook
+       (hookEditFieldRender,editFieldRendered) <- newRenderHook
+       reactimate (fmap (nextTick . elementFocus) editFieldRendered)
        textInput <-
          construct (TextInput (initialContent toDoItem) never)
        destroyButton <-
@@ -99,7 +103,9 @@ instance Component ToDoItem where
                               pure (applyHooks hookHoverContainer div_) <*>
                               showDestroy <*>
                               state <*>
-                              fmap (applyHooks (hookKeyPresses <> hookFocus))
+                              fmap (applyHooks
+                                      (hookKeyPresses <> hookFocus <>
+                                       hookEditFieldRender))
                                    (render textInput) <*>
                               itemValue <*>
                               (status (outputs self))
