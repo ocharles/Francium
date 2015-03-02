@@ -27,6 +27,7 @@ library
     Francium.CSS
     Francium.Components.Form.Input
   hs-source-dirs: src
+  js-sources: vendor/next-tick.js
 
 executable test
   build-depends:

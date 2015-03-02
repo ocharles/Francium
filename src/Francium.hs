@@ -55,6 +55,9 @@ module Francium
   , rumors
   , facts
 
+    -- * Haskell browser functions
+  , nextTick
+
     -- * Re-exported modules
   , module Control.Applicative
   , lmap, dimap
@@ -90,3 +93,11 @@ react app =
      do html <- readIORef initialRender
         renderTo container html
      actuate eventNetwork
+
+--------------------------------------------------------------------------------
+foreign import javascript unsafe
+  "window.nextTick($1)"
+  ffiNextTick :: JSFun (IO ()) -> IO ()
+  
+nextTick :: IO () -> IO ()
+nextTick = ffiNextTick <=< syncCallback AlwaysRetain True
