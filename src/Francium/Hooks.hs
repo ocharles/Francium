@@ -5,16 +5,19 @@
 module Francium.Hooks where
 
 import Control.Lens
+import Control.Monad
 import Control.Monad.State (MonadState)
 import Control.Monad.Trans.State.Strict
+import Data.Foldable
+import Data.Function (fix)
 import Data.Monoid ((<>))
+import Debug.Trace
 import GHCJS.DOM.Element (castToElement)
 import GHCJS.DOM.Event (eventGetTarget)
 import GHCJS.DOM.HTMLInputElement
 import GHCJS.DOM.Types (Element, GObject, toGObject, unsafeCastGObject)
 import GHCJS.DOM.UIEvent
-import Data.Foldable
-import Control.Monad
+import GHCJS.Foreign
 import GHCJS.Marshal
 import GHCJS.Types
 import Reactive.Banana
@@ -91,8 +94,28 @@ newKeyPressHook =
 newRenderHook :: Frameworks t => Moment t (Hook, Event t Element)
 newRenderHook =
   fmap (\(ev,handler) ->
-          (Hook (registerHook "render"
-                              (\el _ -> fromJSRef el >>= maybe (return ()) (handler . castToElement)))
+          (Hook     -- We need to make sure we don't clobber any hooks that have
+                    -- already been added.
+
+             (do name <-
+                   fix (\retry (x:xs) ->
+                          do m <-
+                               use (properties .
+                                    at (toJSString (traceId ("hook-" <> x))))
+                             case m of
+                               Nothing ->
+                                 return (toJSString x)
+                               Just _ ->
+                                 trace (x ++ " in use")
+                                       (retry xs))
+                       ["render" ++ suffix | suffix <-
+                                              iterate ('_' :) ""]
+                 registerHook
+                   name
+                   (\el _ ->
+                      fromJSRef el >>=
+                      maybe (putStrLn "Render hook: Cast to Element failed. Please report this as a bug!")
+                            (handler . castToElement)))
           ,ev))
        newEvent
 
