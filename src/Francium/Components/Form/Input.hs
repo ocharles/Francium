@@ -30,11 +30,8 @@ instance Component Input where
        (renderHook,onRender) <- newRenderHook
        reactimate
          (fmap (\(v,el) ->
-                  do r <- fromJSRef el
-                     for_ r
-                          (\e ->
-                             htmlInputElementSetValue (unsafeCastGObject (toGObject e) :: HTMLInputElement)
-                                                      v))
+                  htmlInputElementSetValue (castToHTMLInputElement el)
+                                           v)
                ((,) <$> inputValue <@> onRender))
        return Instantiation {outputs =
                                InputOutput {inputChanged = onInput}

@@ -8,9 +8,10 @@ import Control.Lens
 import Control.Monad.State (MonadState)
 import Control.Monad.Trans.State.Strict
 import Data.Monoid ((<>))
+import GHCJS.DOM.Element (castToElement)
 import GHCJS.DOM.Event (eventGetTarget)
 import GHCJS.DOM.HTMLInputElement
-import GHCJS.DOM.Types (GObject, toGObject, unsafeCastGObject)
+import GHCJS.DOM.Types (Element, GObject, toGObject, unsafeCastGObject)
 import GHCJS.DOM.UIEvent
 import Data.Foldable
 import Control.Monad
@@ -87,11 +88,11 @@ newKeyPressHook =
 
 -- | The render hook emits an event whenever the 'HTML' it is applied to is
 -- rendered to the DOM.
-newRenderHook :: Frameworks t => Moment t (Hook, Event t (JSRef DOM.HTMLElement))
+newRenderHook :: Frameworks t => Moment t (Hook, Event t Element)
 newRenderHook =
   fmap (\(ev,handler) ->
           (Hook (registerHook "render"
-                              (\el _ -> handler el))
+                              (\el _ -> fromJSRef el >>= maybe (return ()) (handler . castToElement)))
           ,ev))
        newEvent
 
