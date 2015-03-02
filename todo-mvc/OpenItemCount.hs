@@ -3,9 +3,9 @@
 
 module OpenItemCount where
 
-import Clay hiding (filter, render, style)
 import Control.Lens ((.=))
 import Francium
+import Francium.CSS hiding (filter)
 import Francium.Component
 import Francium.HTML
 import Prelude hiding (span)

@@ -3,9 +3,9 @@
 
 module ClearCompleted where
 
-import Clay hiding (render, style)
 import Control.Lens ((.=))
 import Francium
+import Francium.CSS
 import Francium.Component
 import Francium.HTML
 import Francium.Hooks

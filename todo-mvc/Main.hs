@@ -3,13 +3,12 @@
 {-# LANGUAGE RecursiveDo #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-import Clay hiding (i, map, render, style)
-import Clay.Stylesheet (prefixed)
 import ClearCompleted
 import Control.Lens ((?=), (.=))
 import Control.Monad
 import Data.Monoid
 import Francium
+import Francium.CSS
 import Francium.Component
 import Francium.HTML
 import IdiomExp

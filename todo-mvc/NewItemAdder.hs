@@ -4,10 +4,10 @@
 
 module NewItemAdder (NewItemAdder(..), addItem) where
 
-import Clay as CSS hiding (render, style)
 import Control.Lens ((?=), (.=), over)
 import Control.Monad.Trans.State.Strict (execState)
 import Francium
+import Francium.CSS
 import Francium.Component
 import Francium.HTML (style)
 import Francium.Hooks
@@ -15,8 +15,8 @@ import GHCJS.Types
 import Prelude hiding (div, span)
 import Reactive.Banana
 import TextInput
-import VirtualDom.Prim
 import VirtualDom.HTML.Attributes
+import VirtualDom.Prim
 
 -- | The 'NewItemAdder' component allows users to add new items to their to-do
 -- list. Visually, it appears as an <input> box, and fires the 'addItem' event

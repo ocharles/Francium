@@ -7,12 +7,12 @@
 
 module StateFilter (StateFilter(..), stateFilterF) where
 
-import Clay hiding (Filter, for, i, render, style) 
 import Control.Lens ((.=), over)
 import Control.Monad.Trans.State.Strict (execState)
 import Data.Monoid ((<>))
 import Data.Traversable (for)
 import Francium
+import Francium.CSS hiding (Filter)
 import Francium.Component
 import Francium.HTML
 import Francium.Hooks

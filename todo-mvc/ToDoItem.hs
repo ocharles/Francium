@@ -9,14 +9,13 @@
 
 module ToDoItem where
 
-import Clay hiding (checked, i, pre, render, style, type_)
-import Clay.Text (pre)
 import Control.Lens ((?=), (.=), at, over)
 import Control.Monad (void)
 import Control.Monad.Trans.State.Strict (execState)
 import Data.Bool (bool)
 import Data.Monoid ((<>))
 import Francium
+import Francium.CSS
 import Francium.Component
 import Francium.HTML
 import Francium.Hooks

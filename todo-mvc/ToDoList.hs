@@ -5,12 +5,12 @@
 
 module ToDoList where
 
-import Clay hiding (for, filter, i, id, map, render, style)
 import Control.Arrow ((&&&))
 import Control.Lens ((.=))
 import Data.Maybe
 import Data.Traversable (for)
 import Francium
+import Francium.CSS hiding (filter)
 import Francium.Component
 import Francium.HTML
 import GHCJS.Foreign

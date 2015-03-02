@@ -3,10 +3,10 @@
 
 module ToggleAll where
 
-import Clay hiding (all, checked, render, style, type_)
 import Control.Lens ((?=), (.=))
 import Data.Bool
 import Francium
+import Francium.CSS hiding (all)
 import Francium.Component
 import Francium.HTML
 import Francium.Hooks
