@@ -4,7 +4,7 @@
 
 module Francium.Components.Form.Input where
 
-import Control.Monad (void)
+import Control.Monad (void, when)
 import Data.Foldable (for_)
 import Data.Monoid
 import Francium.Component
@@ -30,8 +30,10 @@ instance Component Input where
        (renderHook,onRender) <- newRenderHook
        reactimate
          (fmap (\(v,el) ->
-                  htmlInputElementSetValue (castToHTMLInputElement el)
-                                           v)
+                  let htmlInput = castToHTMLInputElement el
+                  in do now <- htmlInputElementGetValue htmlInput
+                        when (now /= v)
+                             (htmlInputElementSetValue htmlInput v))
                ((,) <$> inputValue <@> onRender))
        return Instantiation {outputs =
                                InputOutput {inputChanged = onInput}
