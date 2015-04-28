@@ -1,5 +1,5 @@
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeFamilies #-}
 
@@ -60,6 +60,10 @@ module Francium
     -- * Haskell browser functions
   , nextTick
 
+    -- * Embedding 'IO'
+  , ioAsEvent
+  , ioAsEventLater
+
     -- * Re-exported modules
   , module Control.Applicative
   , lmap, dimap
@@ -99,6 +103,21 @@ react app =
 foreign import javascript unsafe
   "window.nextTick($1)"
   ffiNextTick :: JSFun (IO ()) -> IO ()
-  
+
 nextTick :: IO () -> IO ()
 nextTick = ffiNextTick <=< syncCallback AlwaysRetain True
+
+--------------------------------------------------------------------------------
+-- | Immediately begin performing an 'IO' action asynchronously, and fire the
+-- 'Event' once when it completes.
+ioAsEvent :: Frameworks t => IO a -> Moment t (Event t a, ThreadId)
+ioAsEvent io =
+  do (ioComplete,fireIoComplete) <- newEvent
+     thread <- liftIO (forkIO (io >>= fireIoComplete))
+     return (ioComplete, thread)
+
+-- | Build a deferred computation that when 'execute'd will perform the given
+-- 'IO' action and deliver its result in an 'Event'.
+ioAsEventLater :: IO a -> FrameworksMoment (AnyMoment Event a)
+ioAsEventLater io =
+  FrameworksMoment (ioAsEvent io >>= trim . fst)
