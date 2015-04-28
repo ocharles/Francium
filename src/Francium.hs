@@ -72,6 +72,7 @@ module Francium
   ) where
 
 import Control.Applicative
+import Control.Concurrent
 import Control.Monad ((<=<))
 import Control.Monad.IO.Class
 import Data.IORef
