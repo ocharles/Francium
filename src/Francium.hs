@@ -13,6 +13,7 @@ module Francium
 
     -- * Components
   , Component(..)
+  , Instantiation(Instantiation)
   , render
   , outputs
 
