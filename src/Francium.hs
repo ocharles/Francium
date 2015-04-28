@@ -17,6 +17,9 @@ module Francium
   , render
   , outputs
 
+    -- * Hook
+  , module Francium.Hooks
+
     -- * 'reactive-banana' re-exports
     -- ** Core Combinators
   , Event
@@ -78,6 +81,7 @@ import Control.Monad.IO.Class
 import Data.IORef
 import Data.Profunctor
 import Francium.Component
+import Francium.Hooks
 import Francium.HTML
 import GHCJS.Foreign
 import GHCJS.Types
