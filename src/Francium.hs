@@ -6,6 +6,7 @@
 module Francium
   ( -- * Running Francium applications
     react
+  , FranciumApp
 
     -- * Building HTML trees
   , HTML, with, into, text, modifyElement
@@ -84,7 +85,9 @@ import Reactive.Banana.Frameworks
 import VirtualDom
 
 --------------------------------------------------------------------------------
-react :: (forall t. Frameworks t => Moment t (Behavior t HTML)) -> IO ()
+type FranciumApp = forall t. Frameworks t => Moment t (Behavior t HTML)
+
+react :: FranciumApp -> IO ()
 react app =
   do container <- newTopLevelContainer
      _ <- initDomDelegator
