@@ -3,7 +3,7 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE OverloadedStrings #-}
 module Francium.HTML
-       (HTML, text, with, into, modifyElement, attributes, namespace, emptyElement, module VirtualDom.HTML,
+       (text, modifyElement, attributes, namespace, emptyElement, module VirtualDom.HTML,
         module VirtualDom.HTML.Attributes, style)
        where
 
@@ -19,7 +19,7 @@ import VirtualDom.HTML.Attributes hiding (abbr_, cite_, data_, form_, label_, op
 import VirtualDom.Prim
 import qualified Clay
 import qualified Data.Text as T
-  
+
 style :: Setter' HTMLElement Clay.Css
 style =
   attributes .
@@ -32,5 +32,5 @@ style =
                                                        (f (return ())))))))
   where isEmptyStr = (== ("" :: String))
 
-modifyElement :: State HTMLElement () -> HTML -> HTML
-modifyElement m = over _HTMLElement (execState m)
+modifyElement :: Functor m => State HTMLElement () -> HTML m -> HTML m
+modifyElement s (HTML m) = HTML (fmap (fmap (over _HTMLElement (execState s))) m)

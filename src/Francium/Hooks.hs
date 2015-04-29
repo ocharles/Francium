@@ -4,88 +4,83 @@
 
 module Francium.Hooks where
 
+import Control.Arrow (second)
 import Control.Lens
 import Control.Monad
 import Control.Monad.State (MonadState)
-import Control.Monad.Trans.State.Strict
+import Control.Monad.Trans.State.Lazy
 import Data.Foldable
 import Data.Function (fix)
+import Data.Traversable (for)
 import Data.Monoid ((<>))
 import GHCJS.DOM.Element (castToElement)
 import GHCJS.DOM.Event (eventGetTarget)
 import GHCJS.DOM.HTMLInputElement
-import GHCJS.DOM.Types (Element, GObject, toGObject, unsafeCastGObject)
+import GHCJS.DOM.Types (Element, toGObject, unsafeCastGObject)
 import GHCJS.DOM.UIEvent
 import GHCJS.Foreign
 import GHCJS.Marshal
 import GHCJS.Types
 import Reactive.Banana
 import Reactive.Banana.Frameworks
-import VirtualDom.Prim
+import qualified VirtualDom.Prim as VDom
+import qualified GHCJS.DOM.Event as DOM
 
 data Hook =
-  Hook {applyHook :: forall m. MonadState HTMLElement m => m ()}
+  Hook {applyHook :: forall m. MonadState VDom.HTMLElement m => m ()}
 
 instance Monoid Hook where
   mempty = Hook (return ())
   mappend (Hook a) (Hook y) = Hook (a >> y)
 
-applyHooks :: Hook -> HTML -> HTML
-applyHooks hook = _HTMLElement %~ (execState (applyHook hook))
+applyHooks :: Hook -> State VDom.HTMLElement ()
+applyHooks hook = applyHook hook
+
+on :: Frameworks t => JSString -> Moment t (Hook, Event t DOM.Event)
+on eventName =
+  fmap (\(ev,handler) ->
+          (Hook (VDom.on eventName
+                         (\e ->
+                            do t <- fromJSRef e
+                               for_ t handler))
+          ,ev))
+       newEvent
 
 newMouseOverHook :: Frameworks t => Moment t (Hook, Event t ())
-newMouseOverHook =
-  fmap (\(ev,handler) ->
-          (Hook (on "mouseover" (const (handler ()))),ev))
-       newEvent
+newMouseOverHook = fmap (second void) (on "mouseover")
 
 newMouseOutHook :: Frameworks t => Moment t (Hook, Event t ())
-newMouseOutHook =
-  fmap (\(ev,handler) ->
-          (Hook (on "mouseout" (const (handler ()))),ev))
-       newEvent
+newMouseOutHook = fmap (second void) (on "mouseout")
 
 newBlurHook :: Frameworks t => Moment t (Hook, Event t ())
-newBlurHook =
-  fmap (\(ev,handler) ->
-          (Hook (on "blur" (const (handler ()))),ev))
-       newEvent
+newBlurHook = fmap (second void) (on "blur")
 
 newClickHook :: Frameworks t => Moment t (Hook, Event t ())
-newClickHook =
-  fmap (\(ev,handler) ->
-          (Hook (on "click" (const (handler ()))),ev))
-       newEvent
+newClickHook = fmap (second void) (on "click")
 
 newInputHook :: Frameworks t => Moment t (Hook, Event t JSString)
 newInputHook =
-  fmap (\(event,handler) ->
-          (Hook (on "input"
-                    (\e ->
-                       do t <- fromJSRef e
-                          for_ t
-                               (\t' ->
-                                  do t'' <- eventGetTarget t'
-                                     for_ t''
+  do (hook,ev) <- on "input"
+     ev' <-
+       execute (fmap (\t' ->
+                        FrameworksMoment
+                          (liftIO (do t'' <- eventGetTarget t'
+                                      for t''
                                           (htmlInputElementGetValue .
-                                           castToHTMLInputElement >=> handler))))
-          ,event))
-       newEvent
+                                           castToHTMLInputElement))))
+                     ev)
+     return (hook,filterJust ev')
 
 newKeyPressHook :: Frameworks t => Moment t (Hook, Event t Int)
 newKeyPressHook =
-  fmap (\(ev,handler) ->
-          (Hook (on "keypress"
-                    (\e ->
-                       do t <- fromJSRef e
-                          for_ t
-                               (uiEventGetKeyCode .
-                                -- A little messy, but we're working with a dom-delegator 'KeyEvent' here.
-                                (unsafeCastGObject :: GObject -> UIEvent) .
-                                toGObject >=>
-                                handler)))
-          ,ev))
-       newEvent
+  do (hook,ev) <- on "keypress"
+     ev' <-
+       -- A little messy, but we're working with a dom-delegator 'KeyEvent' here.
+       execute
+         (fmap (\t' ->
+                  FrameworksMoment (liftIO (uiEventGetKeyCode (unsafeCastGObject (toGObject t') :: UIEvent))))
+               ev)
+     return (hook,ev')
 
 -- | The render hook emits an event whenever the 'HTML' it is applied to is
 -- rendered to the DOM.
@@ -98,7 +93,7 @@ newRenderHook =
              (do name <-
                    fix (\retry (x:xs) ->
                           do m <-
-                               use (properties .
+                               use (VDom.properties .
                                     at (toJSString ("hook-" <> x)))
                              case m of
                                Nothing ->
@@ -106,7 +101,7 @@ newRenderHook =
                                Just _ -> retry xs)
                        ["render" ++ suffix | suffix <-
                                               iterate ('_' :) ""]
-                 registerHook
+                 VDom.registerHook
                    name
                    (\el _ ->
                       fromJSRef el >>=

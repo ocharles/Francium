@@ -13,7 +13,7 @@ import GHCJS.DOM.HTMLInputElement
 import GHCJS.Types
 import Reactive.Banana
 import Reactive.Banana.Frameworks
-  
+
 data Input t = Input { inputValue :: Behavior t JSString }
 
 instance Component Input where
@@ -37,7 +37,7 @@ instance Component Input where
                                -- that even if the desired value doesn't change
                                -- we will reset the input field (essentially
                                -- locking it).
-                               applyHooks (inputHook <> renderHook)
-                                          input_ <$
-                               inputValue <*
-                               (stepper () (void onInput))}
+                               embed
+                                 (input_ (applyHooks (inputHook <> renderHook)) mempty <$
+                                  inputValue <*
+                                  (stepper () (void onInput)))}

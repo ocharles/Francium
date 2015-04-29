@@ -9,7 +9,7 @@ module Francium
   , FranciumApp
 
     -- * Building HTML trees
-  , HTML, with, into, text, modifyElement
+  , with, into, text
 
     -- * Components
   , Component(..)
@@ -89,17 +89,25 @@ import Prelude hiding (div, mapM, sequence)
 import Reactive.Banana
 import Reactive.Banana.Frameworks
 import VirtualDom
+import qualified VirtualDom.Prim as VDom
+import Data.Foldable
 
 --------------------------------------------------------------------------------
-type FranciumApp = forall t. Frameworks t => Moment t (Behavior t HTML)
+type FranciumApp = forall t. Frameworks t => Moment t (HTML (Behavior t))
 
 react :: FranciumApp -> IO ()
 react app =
   do container <- newTopLevelContainer
      _ <- initDomDelegator
-     initialRender <- newIORef div_
+     initialRender <-
+       newIORef (VDom.emptyElement "div")
      eventNetwork <-
-       compile (do document <- app
+       compile (do document <-
+                     fmap (\x ->
+                             case div_ x of
+                               HTML beh ->
+                                 fmap (head . toList) beh)
+                          app
                    do html <- initial document
                       liftIOLater (writeIORef initialRender html)
                    documentChanged <- changes document

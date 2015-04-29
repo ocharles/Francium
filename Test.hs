@@ -22,9 +22,5 @@ main =
                    stepper ""
                            (fmap (toJSString . map toUpper . fromJSString)
                                  (inputChanged (outputs input)))
-             return (fmap (\a ->
-                             into div_
-                                  [a
-                                  ,applyHooks clickHook
-                                              (into button_ ["Inc"])])
-                          (render input)))
+             return (div_ (mconcat [render input
+                                   ,button_ (applyHooks clickHook) "Inc"])))

@@ -26,7 +26,7 @@ class Component a where
   data Output (behavior :: * -> *) (event :: * -> *) a :: *
   construct :: Frameworks t => a t -> Moment t (Instantiated t a)
 
-  
+
 -- | A 'Component' instantiated at a known point in time. Users will most commonly
 -- work with 'Instantiated' components, as these are the components we observe
 -- right now.
@@ -40,8 +40,11 @@ type Instantiated t a = Instantiation (Behavior t) (Event t) a
 -- 'trimComponent' we are able to model each element of the list as a
 -- 'Component'
 trimComponent :: TrimOutput a => Instantiated t a -> Moment t (FutureInstantiation a)
-trimComponent (Instantiation r o) = Instantiation <$> trimB r <*> trimOutput o
-
+trimComponent (Instantiation r o) =
+  Instantiation <$>
+  (case r of
+     HTML m -> fmap HTML (trimB m)) <*>
+  trimOutput o
 
 -- | A future instantiation of a component, to be dynamically switched. You can
 -- turn any component into a 'FutureInstantiation' by trimming it with
@@ -67,7 +70,7 @@ class TrimOutput a  where
 
 
 data Instantiation behavior event a =
-  Instantiation {render :: behavior HTML
+  Instantiation {render :: HTML behavior
                 ,outputs :: Output behavior event a}
 
 class GTrim f where
