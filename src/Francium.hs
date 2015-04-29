@@ -35,6 +35,9 @@ module Francium
   , never
   , whenE
   , filterE
+  , tag
+  , constWhen
+  , split
 
     -- ** Network Modifications
   , Moment
@@ -138,3 +141,10 @@ ioAsEvent io =
 ioAsEventLater :: IO a -> FrameworksMoment (AnyMoment Event a)
 ioAsEventLater io =
   FrameworksMoment (ioAsEvent io >>= trim . fst)
+
+--------------------------------------------------------------------------------
+tag :: a -> Event t b -> Event t a
+tag = (<$)
+
+constWhen :: Event t b -> a -> Event t (x -> a)
+constWhen ev a = tag (const a) ev
