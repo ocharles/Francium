@@ -8,7 +8,7 @@ import Control.Arrow (second)
 import Control.Lens
 import Control.Monad
 import Control.Monad.State (MonadState)
-import Control.Monad.Trans.State.Lazy
+import Control.Monad.Trans.State.Strict
 import Data.Foldable
 import Data.Function (fix)
 import Data.Traversable (for)

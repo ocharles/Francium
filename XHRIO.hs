@@ -1,44 +1,58 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
 {-# LANGUAGE InterruptibleFFI #-}
 {-# LANGUAGE RecordWildCards #-}
-module XHRIO where
 
-import Control.Arrow
-import Data.Maybe
-import Data.List.Split
+module XHR where
+
 import Control.Applicative
+import Control.Arrow
 import Data.Foldable (for_)
+import Data.List.Split
+import Data.Maybe
 import GHCJS.Foreign
 import GHCJS.Types
 
-data Request = Request
-  { rqWithCredentials :: Bool
-  , rqURL :: String
-  , rqMethod :: Method
-  , rqHeaders :: [(String, String)]
-  , rqPayload :: Maybe JSString
-  }
+data Request =
+  Request {rqWithCredentials :: Bool
+          ,rqURL :: String
+          ,rqMethod :: Method
+          ,rqHeaders :: [(String,String)]
+          ,rqPayload :: Maybe JSString}
 
-data Method = GET | POST | DELETE | PUT deriving (Eq, Show)
+data Method
+  = GET
+  | POST
+  | DELETE
+  | PUT
+  deriving (Eq,Show)
 
 instance ToJSString Method where
   toJSString = toJSString . show
 
-data Response = Response { resStatus :: Int
-                         , resHeaders :: [(String, String)]
-                         }
+data Response =
+  Response {resStatus :: Int
+           ,resHeaders :: [(String,String)]}
 
 request :: Request -> IO Response
-request Request{..} = do
-  xhr <- jsNewXHR
-  jsXHROpen xhr (toJSString rqMethod) (toJSString rqURL)
-  jsXHRSetWithCredentials xhr (toJSBool rqWithCredentials)
-  for_ rqHeaders $ \(k, v) -> jsXHRSetRequestHeader xhr (toJSString k) (toJSString v)
-  jsXHRSend xhr (fromMaybe jsNull rqPayload)
-  Response
-   <$> jsXHRGetStatus xhr
-   <*> (map (second (drop 2) . break (== ':')) . splitOn "\r\n" . fromJSString
-          <$> jsXHRGetAllResponseHeaders xhr)
+request Request{..} =
+  do xhr <- jsNewXHR
+     jsXHROpen xhr
+               (toJSString rqMethod)
+               (toJSString rqURL)
+     jsXHRSetWithCredentials xhr
+                             (toJSBool rqWithCredentials)
+     for_ rqHeaders $
+       \(k,v) ->
+         jsXHRSetRequestHeader xhr
+                               (toJSString k)
+                               (toJSString v)
+     jsXHRSend xhr (fromMaybe jsNull rqPayload)
+     Response <$> jsXHRGetStatus xhr <*>
+       (map (second (drop 2) .
+             break (== ':')) .
+        splitOn "\r\n" .
+        fromJSString <$>
+        jsXHRGetAllResponseHeaders xhr)
 
 --------------------------------------------------------------------------------
 data XHR
