@@ -25,6 +25,7 @@ library
     Francium.Components.Form.Input
     Francium.HTML
     Francium.Hooks
+    Francium.Routing
   hs-source-dirs: src
   js-sources: vendor/next-tick.js
   ghc-options: -Wall

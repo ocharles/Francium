@@ -17,8 +17,11 @@ module Francium
   , render
   , outputs
 
-    -- * Hook
+    -- * Hooks
   , module Francium.Hooks
+
+    -- * Routing
+  , module Francium.Routing
 
     -- * 'reactive-banana' re-exports
     -- ** Core Combinators
