@@ -16,7 +16,7 @@ library
     profunctors,
     reactive-banana,
     text, transformers,
-    virtual-dom
+    virtual-dom, stm
   default-language: Haskell2010
   exposed-modules:
     Francium

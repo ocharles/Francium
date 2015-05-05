@@ -84,13 +84,16 @@ module Francium
 
 import Control.Applicative
 import Control.Concurrent
-import Control.Monad ((<=<))
+import Control.Concurrent.STM
+import Control.Monad ((<=<), forever)
 import Control.Monad.IO.Class
+import Data.Foldable
 import Data.IORef
 import Data.Profunctor
 import Francium.Component
-import Francium.Hooks
 import Francium.HTML
+import Francium.Hooks
+import Francium.Routing
 import GHCJS.Foreign
 import GHCJS.Types
 import Prelude hiding (div, mapM, sequence)
@@ -98,7 +101,6 @@ import Reactive.Banana
 import Reactive.Banana.Frameworks
 import VirtualDom
 import qualified VirtualDom.Prim as VDom
-import Data.Foldable
 
 --------------------------------------------------------------------------------
 type FranciumApp = forall t. Frameworks t => Moment t (HTML (Behavior t))
@@ -109,6 +111,7 @@ react app =
      _ <- initDomDelegator
      initialRender <-
        newIORef (VDom.emptyElement "div")
+     renderChannel <- newTChanIO
      eventNetwork <-
        compile (do document <-
                      fmap (\x ->
@@ -117,11 +120,12 @@ react app =
                                  fmap (head . toList) beh)
                           app
                    do html <- initial document
-                      liftIOLater (writeIORef initialRender html)
+                      liftIOLater (atomically (writeTChan renderChannel html))
                    documentChanged <- changes document
-                   reactimate' (fmap (fmap (renderTo container)) documentChanged))
-     do html <- readIORef initialRender
-        renderTo container html
+                   reactimate'
+                     (fmap (fmap (atomically . writeTChan renderChannel)) documentChanged))
+     forkIO (forever (nextTick . renderTo container =<<
+                      atomically (readTChan renderChannel)))
      actuate eventNetwork
 
 --------------------------------------------------------------------------------
@@ -148,7 +152,7 @@ ioAsEventLater io =
   FrameworksMoment (ioAsEvent io >>= trim . fst)
 
 --------------------------------------------------------------------------------
-tag :: a -> Event t b -> Event t a
+tag :: Functor f => a -> f b -> f a
 tag = (<$)
 
 constWhen :: Event t b -> a -> Event t (x -> a)
