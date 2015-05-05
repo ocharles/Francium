@@ -41,6 +41,8 @@ module Francium
   , tag
   , constWhen
   , split
+  , spill
+  , filterJust
 
     -- ** Network Modifications
   , Moment
