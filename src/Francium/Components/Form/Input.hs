@@ -4,6 +4,7 @@
 
 module Francium.Components.Form.Input where
 
+import Control.Lens ((.=))
 import Control.Monad (void, when)
 import Data.Monoid
 import Francium.Component
@@ -14,7 +15,9 @@ import GHCJS.Types
 import Reactive.Banana
 import Reactive.Banana.Frameworks
 
-data Input t = Input { inputValue :: Behavior t JSString }
+data Input t =
+  Input {inputValue :: Behavior t JSString
+        ,inputDisabled :: Behavior t Bool}
 
 instance Component Input where
   data Output behavior event Input = InputOutput{inputChanged ::
@@ -38,6 +41,11 @@ instance Component Input where
                                -- we will reset the input field (essentially
                                -- locking it).
                                embed
-                                 (input_ (applyHooks (inputHook <> renderHook)) mempty <$
+                                 ((\isDisabled ->
+                                     input_ (do disabled .= isDisabled
+                                                applyHooks
+                                                  (inputHook <> renderHook))
+                                            mempty) <$>
+                                  inputDisabled <*
                                   inputValue <*
                                   (stepper () (void onInput)))}
