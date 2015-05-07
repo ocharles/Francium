@@ -13,7 +13,7 @@ import GHCJS.Foreign
 
 main :: IO ()
 main =
-  react (mdo input <- construct (Input v)
+  react (mdo input <- construct (Input v (pure False))
              (clickHook,onClick) <- newClickHook
              let v =
                    fmap (toJSString . show)
