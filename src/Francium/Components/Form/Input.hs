@@ -25,8 +25,8 @@ instance Component Input where
        reactimate
          (fmap (\(v,el) ->
                   let htmlInput = castToHTMLInputElement el
-                  in do now <- htmlInputElementGetValue htmlInput
-                        when (now /= v)
+                  in do now <- (htmlInputElementGetValue htmlInput :: IO JSString)
+                        when (not (eqRef v now))
                              (htmlInputElementSetValue htmlInput v))
                ((,) <$> inputValue <@> onRender))
        return Instantiation {outputs =
