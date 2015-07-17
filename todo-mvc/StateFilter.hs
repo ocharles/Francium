@@ -8,26 +8,26 @@
 
 module StateFilter (StateFilter(..), stateFilterF) where
 
+import Control.FRPNow
 import Control.Lens ((.=))
 import Data.Monoid ((<>))
 import Data.Traversable (for)
-import Francium
-import Francium.CSS hiding (Filter)
+import Francium.CSS hiding (Filter, merge)
 import Francium.Component
 import Francium.HTML
 import Francium.Hooks
 import IdiomExp
 import Prelude hiding (div, span)
 import ToDoItem (Status(..))
+import GHCJS.Foreign
 
 --------------------------------------------------------------------------------
-data StateFilter t =
+data StateFilter =
   StateFilter
 
 instance Component StateFilter where
-  data Output behavior event
-       StateFilter = StateFilterOutputs{stateFilterF ::
-                                        behavior (Status -> Bool)}
+  data Output StateFilter = StateFilterOutputs{stateFilterF ::
+                                             Behavior (Status -> Bool)}
   construct StateFilter =
     mdo stateFilters <-
           for [minBound .. maxBound]
@@ -36,12 +36,14 @@ instance Component StateFilter where
                           fmap (filter_ ==) currentState
                     construct (FilterSelector {filterType = filter_
                                               ,isActive = active}))
-        let currentState =
-              stepper initialState (unions (fmap (filterClicked . outputs) stateFilters))
+        currentState <-
+          sample (fromChanges
+                    initialState
+                    (foldl merge mempty (fmap (filterClicked . outputs) stateFilters)))
         return Instantiation {render =
-                                fmap (into container .
-                                      fmap (into selectorCell . pure))
-                                     (traverse render stateFilters)
+                                into container
+                                     (mconcat (fmap (into selectorCell)
+                                                    (fmap render stateFilters)))
                              ,outputs =
                                 StateFilterOutputs
                                   (fmap (\case
@@ -51,7 +53,7 @@ instance Component StateFilter where
                                            Completed -> (== Complete))
                                         currentState)}
     where container =
-            with ul_
+            ul_
                  (style .=
                   do left (px 0)
                      right (px 0)
@@ -65,9 +67,9 @@ instance Component StateFilter where
                             (px 0)
                             (px 0)
                             (px 0))
-                 []
+                 mempty
           selectorCell =
-            with li_ (style .= display inline) []
+            li_ (style .= display inline) mempty
           initialState = All
 
 --------------------------------------------------------------------------------
@@ -77,9 +79,9 @@ data Filter
   | Completed
   deriving (Bounded,Enum,Eq,Ord,Show)
 
-data FilterSelector t =
+data FilterSelector =
   FilterSelector {filterType :: Filter
-                 ,isActive :: Behavior t Bool}
+                 ,isActive :: Behavior Bool}
 
 data FilterSelectorState
   = Selected
@@ -87,8 +89,8 @@ data FilterSelectorState
   | NoSelection
 
 instance Component FilterSelector where
-  data Output behavior event
-       FilterSelector = FilterOutput{filterClicked :: event Filter}
+  data Output FilterSelector = FilterOutput{filterClicked ::
+                                          EvStream Filter}
   construct fc =
     do (hoverHook,isHovering) <- newHoverHook
        (clickHook,clicked) <- newClickHook
@@ -101,12 +103,10 @@ instance Component FilterSelector where
                                FilterOutput {filterClicked = filterType fc <$
                                                              clicked}
                             ,render =
-                               $(i [|modifyElement
-                                       $(i [|renderStateSelector selectionState|])
-                                       (pure (into (applyHooks
-                                                      (hoverHook <> clickHook)
-                                                      a_)
-                                                   [text (show (filterType fc))]))|])}
+                               modifyElementB
+                                 (fmap renderStateSelector selectionState)
+                                 (a_ (applyHooks (hoverHook <> clickHook))
+                                     (text (toJSString (show (filterType fc)))))}
     where renderStateSelector selectionState =
             style .=
             do borderWidth (px 1)

@@ -17,6 +17,8 @@ import Prelude hiding (div, span)
 import StateFilter
 import ToDoList
 import ToggleAll
+import Control.FRPNow
+import Francium.Component
 
 -- | 'app' defines our TodoMVC clone's top-level definition. To Francium, web
 -- applications are simply time-varying HTML documents, and we can see this from
@@ -25,7 +27,7 @@ import ToggleAll
 --
 -- Inside our 'app' function, we simply build all the necessary components for
 -- the TodoMVC application, and wire them together appropriately.
-app :: Frameworks t => Moment t (Behavior t HTML)
+app :: Now (HTML Behavior)
 app =
   mdo
       -- The newItemAdder component allows users to append new items to their
@@ -88,17 +90,23 @@ app =
       -- applicative syntax to snapshot the renderings of each child component
       -- at the same point in time, and then lay this out in 'appView'.
       return
-        $(i [|appView $(i [|AppView {avNewItemAdder = render newItemAdder
-                                    ,avToDoList = render toDoList
-                                    ,avHasItems =
-                                       -- $(i [|(not . null) (allItems (outputs toDoList))|])
-                                       fmap (not . null)
-                                            (allItems (outputs toDoList))
-                                    ,avToDoSummary =
-                                       $(i [|ToDoSummary {tdsOpenItemCounter = render openItemCount
-                                                         ,tdsStateFilter = render stateFilter
-                                                         ,tdsClearCompleted = render clearCompleted}|])
-                                    ,avToggleAll = render toggleAll}|])|])
+        (embed $(i [|appView $(i [|AppView {avNewItemAdder =
+                                              observeHTML (render newItemAdder)
+                                           ,avToDoList =
+                                              observeHTML (render toDoList)
+                                           ,avHasItems =
+                                              -- $(i [|(not . null) (allItems (outputs toDoList))|])
+                                              fmap (not . null)
+                                                   (allItems (outputs toDoList))
+                                           ,avToDoSummary =
+                                              $(i [|ToDoSummary {tdsOpenItemCounter =
+                                                                   observeHTML (render openItemCount)
+                                                                ,tdsStateFilter =
+                                                                   observeHTML (render stateFilter)
+                                                                ,tdsClearCompleted =
+                                                                   observeHTML (render clearCompleted)}|])
+                                           ,avToggleAll =
+                                              observeHTML (render toggleAll)}|])|]))
 
 -- | Now that we have declared our application's event network, the only
 -- remaining step is to execute it. To do that, we simply apply 'react' to
@@ -107,34 +115,35 @@ app =
 main :: IO ()
 main = react app
 
-data AppView =
-  AppView {avNewItemAdder :: HTML
-          ,avToDoList :: HTML
+data AppView m =
+  AppView {avNewItemAdder :: HTML m
+          ,avToDoList :: HTML m
           ,avHasItems :: Bool
-          ,avToDoSummary :: ToDoSummary
-          ,avToggleAll :: HTML}
+          ,avToDoSummary :: ToDoSummary m
+          ,avToggleAll :: HTML m}
 
 -- | The 'appView' function simply stiches together all renderings of child
 -- components into the main HTML of the document. Francium encourages the use
 -- of inline styles, but that requires discipline in making small functions.
 -- Here we see that most of the elements that we're adding content to are
 -- abstract HTML values.
-appView :: AppView -> HTML
+appView :: Applicative m => AppView m -> HTML m
 appView AppView{..} =
   into mainContainer
-       [into rootSection
-             (into header_ [pageTitle,avNewItemAdder] :
-              if avHasItems
-                 then [into toDoSection [avToggleAll,avToDoList]
-                      ,toDoSummary avToDoSummary]
-                 else [])
-       ,pageFooter]
+       (mconcat [into rootSection
+                      (header_ (mconcat [pageTitle,avNewItemAdder]) <>
+                       if avHasItems
+                          then mconcat [toDoSection
+                                          (mconcat [avToggleAll,avToDoList])
+                                       ,toDoSummary avToDoSummary]
+                          else mempty)
+                ,pageFooter])
 
 -- | The application itself is rendered into the <body> of the document. Here
 -- we style the body accordingly.
-mainContainer :: HTML
+mainContainer :: Applicative m => HTML m
 mainContainer =
-  with body_
+  body_
        (style .=
         do sym padding (px 0)
            sym2 margin (px 0) auto
@@ -150,13 +159,13 @@ mainContainer =
            fontVariant normal
            fontStyle normal
            backgroundColor (rgb 245 245 245))
-       []
+       mempty
 
 -- | The root section contains the application, and gives the distinctive
 -- todo-mvc container look.
-rootSection :: HTML
+rootSection :: Applicative m => HTML m
 rootSection =
-  with section_
+  section_
        (style .=
         do boxShadows
              [(px 0,px 2,px 4,rgba 0 0 0 51),(px 0,px 25,px 50,rgba 0 0 0 25)]
@@ -166,26 +175,25 @@ rootSection =
                   (px 40)
                   (px 0)
            backgroundColor (rgb 255 255 255))
-       []
+       mempty
 
 -- | The to-do section contains the to-do list, and also overlaps the
 -- "complete all" checkbox.
-toDoSection :: HTML
+toDoSection :: Applicative m => HTML m -> HTML m
 toDoSection =
-  with section_
+  section_
        (style .=
         do borderTop solid
                      (px 1)
                      (rgb 230 230 230)
            zIndex 2
            position relative)
-       []
-       
+
 -- | The page title is a header that shows the user they are viewing the todo-mvc
 -- application.
-pageTitle :: HTML
+pageTitle :: Applicative m => HTML m
 pageTitle =
-  with h1_
+  h1_
        (style .=
         do color (rgba 175 47 47 39)
            textAlign (alignSide sideCenter)
@@ -194,113 +202,97 @@ pageTitle =
            width (pct 100)
            top (px (-155))
            position absolute)
-       ["todos"]
+       "todos"
 
 -- | The ToDoSummary provides a little information under the to-do list,
 -- allowing the user to either filter the to-do list, see how many incomplete
 -- items they have, and to clear all completed items.
-data ToDoSummary =
-  ToDoSummary {tdsOpenItemCounter :: HTML
-              ,tdsStateFilter :: HTML
-              ,tdsClearCompleted :: HTML}
+data ToDoSummary m =
+  ToDoSummary {tdsOpenItemCounter :: HTML m
+              ,tdsStateFilter :: HTML m
+              ,tdsClearCompleted :: HTML m}
 
-toDoSummary :: ToDoSummary -> HTML
+toDoSummary :: Applicative m => ToDoSummary m -> HTML m
 toDoSummary ToDoSummary{..} =
-  with footer_
-       (style .=
-        do borderTopColor (rgb 230 230 230)
-           borderTopStyle solid
-           borderTopWidth (px 1)
-           textAlign (alignSide sideCenter)
-           height (px 20)
-           sym2 padding
-                (px 10)
-                (px 15)
-           color (rgb 119 119 119))
-       [with div_
-             (style .=
-              do position absolute
-                 right (px 0)
-                 bottom (px 0)
-                 left (px 0)
-                 height (px 50)
-                 boxShadows4
-                   [(px 0,px 1,px 1,px 0,rgba 0 0 0 50)
-                   ,(px 0,px 8,px 0,px (-3),rgb 246 246 246)
-                   ,(px 0,px 9,px 1,px (-3),rgba 0 0 0 50)
-                   ,(px 0,px 16,px 0,px (-6),rgb 246 246 246)
-                   ,(px 0,px 17,px 2,px (-6),rgba 0 0 0 50)]
-                 overflow hidden)
-             []
-       ,tdsOpenItemCounter
-       ,tdsStateFilter
-       ,tdsClearCompleted
-       ,with button_
-             (style .=
-              do verticalAlign baseline
-                 fontSize (pct 100)
-                 borderWidth (px 0)
-                 sym padding (px 0)
-                 sym margin (px 0)
-                 outlineStyle none
-                 position relative
-                 visibility hidden
-                 cursor pointer
-                 textDecorationLine none
-                 lineHeight (px 20)
-                 float floatRight
-                 backgroundImage none)
-             []]
+  footer_ (style .=
+           do borderTopColor (rgb 230 230 230)
+              borderTopStyle solid
+              borderTopWidth (px 1)
+              textAlign (alignSide sideCenter)
+              height (px 20)
+              sym2 padding
+                   (px 10)
+                   (px 15)
+              color (rgb 119 119 119))
+          (mconcat [div_ (style .=
+                          do position absolute
+                             right (px 0)
+                             bottom (px 0)
+                             left (px 0)
+                             height (px 50)
+                             boxShadows4
+                               [(px 0,px 1,px 1,px 0,rgba 0 0 0 50)
+                               ,(px 0,px 8,px 0,px (-3),rgb 246 246 246)
+                               ,(px 0,px 9,px 1,px (-3),rgba 0 0 0 50)
+                               ,(px 0,px 16,px 0,px (-6),rgb 246 246 246)
+                               ,(px 0,px 17,px 2,px (-6),rgba 0 0 0 50)]
+                             overflow hidden)
+                         mempty
+                   ,tdsOpenItemCounter
+                   ,tdsStateFilter
+                   ,tdsClearCompleted
+                   ,button_ (style .=
+                             do verticalAlign baseline
+                                fontSize (pct 100)
+                                borderWidth (px 0)
+                                sym padding (px 0)
+                                sym margin (px 0)
+                                outlineStyle none
+                                position relative
+                                visibility hidden
+                                cursor pointer
+                                textDecorationLine none
+                                lineHeight (px 20)
+                                float floatRight
+                                backgroundImage none)
+                            mempty])
 
-pageFooter :: HTML
+pageFooter :: Applicative m => HTML m
 pageFooter =
-  with footer_
-       (style .=
-        do textAlign (alignSide sideCenter)
-           textShadow (px 0)
-                      (px 1)
-                      (px 0)
-                      (rgba 255 255 255 127)
-           fontSize (px 10)
-           color (rgb 191 191 191)
-           sym3 margin
-                (px 65)
-                auto
-                (px 0))
-       [with p_
-             (style .=
-              lineHeight (1 :: Size Abs))
-             ["Double-click to edit a todo"]
-       ,with p_
-             (style .=
-              lineHeight (1 :: Size Abs))
-             ["Template by "
-             ,with a_
-                   (do style .=
-                         do fontWeight (weight 400)
-                            textDecorationLine none
-                       href_ ?= "http://sindresorhus.com")
-                   ["Sindre Sorhus"]]
-       ,with p_
-             (style .=
-              lineHeight (1 :: Size Abs))
-             ["Created by "
-             ,with a_
-                   (do style .=
-                         do fontWeight (weight 400)
-                            textDecorationLine none
-                       href_ ?= "http://todomvc.com")
-                   ["you"]]
-       ,with p_
-             (style .=
-              lineHeight (1 :: Size Abs))
-             ["Part of "
-             ,with a_
-                   (do style .=
-                         do fontWeight (weight 400)
-                            textDecorationLine none
-                       href_ ?= "http://todomvc.com")
-                   ["TodoMVC"]]]
+  footer_ (style .=
+           do textAlign (alignSide sideCenter)
+              textShadow (px 0)
+                         (px 1)
+                         (px 0)
+                         (rgba 255 255 255 127)
+              fontSize (px 10)
+              color (rgb 191 191 191)
+              sym3 margin
+                   (px 65)
+                   auto
+                   (px 0))
+          (mconcat [p_ (style .= lineHeight (1 :: Size Abs)) "Double-click to edit a todo"
+                   ,p_ (style .= lineHeight (1 :: Size Abs))
+                       ("Template by " <>
+                        a_ (do style .=
+                                 do fontWeight (weight 400)
+                                    textDecorationLine none
+                               href_ ?= "http://sindresorhus.com")
+                           "Sindre Sorhus")
+                   ,p_ (style .= lineHeight (1 :: Size Abs))
+                       ("Created by " <>
+                        a_ (do style .=
+                                 do fontWeight (weight 400)
+                                    textDecorationLine none
+                               href_ ?= "http://todomvc.com")
+                           "you")
+                   ,p_ (style .= lineHeight (1 :: Size Abs))
+                       ("Part of " <>
+                        a_ (do style .=
+                                 do fontWeight (weight 400)
+                                    textDecorationLine none
+                               href_ ?= "http://todomvc.com")
+                           "TodoMVC")])
 
 boxShadows4 :: [(Size a, Size a, Size a, Size a, Color)] -> Css
 boxShadows4 =

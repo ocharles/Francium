@@ -4,25 +4,27 @@
 
 module TextInput (TextInput(..), TextInput.value) where
 
-import Francium
 import Francium.Component
 import Francium.Components.Form.Input
 import GHCJS.Types
+import Control.FRPNow
 
-data TextInput t =
+data TextInput =
   TextInput {initialText :: JSString
-            ,updateText :: Event t (JSString -> JSString)}
+            ,updateText :: EvStream (JSString -> JSString)}
 
 instance Component TextInput where
-  data Output b e TextInput = TextInputOutput{value :: b JSString}
+  data Output TextInput = TextInputOutput{value :: Behavior JSString}
   construct ti =
     mdo input <-
-          construct Input {inputValue = value}
-        let value =
-              accumB (initialText ti)
-                     ((const <$>
-                       inputChanged (outputs input)) `union`
-                      (updateText ti))
+          construct Input {inputValue = value
+                          ,inputDisabled =
+                             pure False}
+        value <-
+          sample (foldEs (\a f -> f a)
+                         (initialText ti)
+                         (merge (const <$> inputChanged (outputs input))
+                                (updateText ti)))
         return Instantiation {render = render input
                              ,outputs =
                                 TextInputOutput value}

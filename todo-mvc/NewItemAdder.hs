@@ -4,8 +4,9 @@
 
 module NewItemAdder (NewItemAdder(..), addItem) where
 
+import Control.Monad
+import Control.FRPNow
 import Control.Lens ((?=), (.=))
-import Francium
 import Francium.CSS
 import Francium.Component
 import Francium.HTML
@@ -17,12 +18,12 @@ import TextInput
 -- | The 'NewItemAdder' component allows users to add new items to their to-do
 -- list. Visually, it appears as an <input> box, and fires the 'addItem' event
 -- when the user presses the return key on their keyboard.
-data NewItemAdder t =
+data NewItemAdder =
   NewItemAdder
 
 instance Component NewItemAdder where
-  data Output behavior event NewItemAdder = NewItemOutput{addItem ::
-                                                        event JSString}
+  data Output NewItemAdder = NewItemOutput{addItem ::
+                                         EvStream JSString}
   construct NewItemAdder =
     mdo
         -- Construct an input field component.
@@ -44,20 +45,20 @@ instance Component NewItemAdder where
             -- provides us with the contents of the text box.
             itemValue =
               TextInput.value (outputs inputComponent)
-        reactimate (fmap print keyPressed)
         return Instantiation {render =
                                 -- To render the component, we simply reskin the
                                 -- TextInput component
-                                fmap
-                                  (applyHooks hookKeyPress .
-                                   modifyElement inputAttributes)
-                                  (render inputComponent)
+                                embed
+                                  (fmap (modifyElement
+                                           (do applyHooks hookKeyPress
+                                               inputAttributes))
+                                        (observeHTML (render inputComponent)))
                              ,outputs =
                                 -- The outputs of this component is an Event
                                 -- that samples the contents of the input field
                                 -- whenever return is pressed.
-                                NewItemOutput {addItem = itemValue <@
-                                                         returnPressed}}
+                                NewItemOutput {addItem =
+                                                 snapshots itemValue (void returnPressed)}}
     where inputAttributes =
             do style .=
                  (do boxSizing borderBox
@@ -81,6 +82,6 @@ instance Component NewItemAdder where
                placeholder_ ?= "What needs to be done?"
                autofocus_ ?= ""
 
-listenForReturn :: (Num a, Eq a) => Event t a -> Event t a
-listenForReturn = filterE (== returnKeyCode)
+listenForReturn :: (Num a, Eq a) => EvStream a -> EvStream a
+listenForReturn = filterEs (== returnKeyCode)
   where returnKeyCode = 13

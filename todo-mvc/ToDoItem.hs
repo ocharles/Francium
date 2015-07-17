@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE LambdaCase #-}
@@ -6,15 +7,17 @@
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE RecursiveDo #-}
 
 module ToDoItem where
 
+import Control.FRPNow
 import Control.Lens ((?=), (.=), at)
 import Control.Monad (void)
 import Data.Bool (bool)
 import Data.Monoid ((<>))
 import Francium
-import Francium.CSS
+import Francium.CSS hiding (merge)
 import Francium.Component
 import Francium.HTML
 import Francium.Hooks
@@ -35,119 +38,111 @@ negateStatus =
     Incomplete -> Complete
     Complete -> Incomplete
 
-deriving instance Generic (Output b e ToDoItem)
-instance TrimOutput ToDoItem
-
 data State = Viewing | Editing deriving (Eq)
 
 --------------------------------------------------------------------------------
-data ToDoItem t =
+data ToDoItem =
   ToDoItem {initialContent :: JSString
-           ,setStatus :: Event t Status}
+           ,setStatus :: EvStream Status}
 
 instance Component ToDoItem where
-  data Output behavior event ToDoItem = ToDoItemOutput{status ::
-                                                     behavior Status,
-                                                     destroy :: event (),
-                                                     steppedContent :: behavior JSString}
+  data Output ToDoItem = ToDoItemOutput{status :: Behavior Status,
+                                      destroy :: Event (), steppedContent :: Behavior JSString}
   construct toDoItem =
-    do (hookHoverContainer,isHoveringRow) <- newHoverHook
-       (hookKeyPresses,keyPressed) <- newKeyPressHook
-       (hookFocus,lostFocus) <- newBlurHook
-       (clickHook,click) <- newClickHook
-       (hookEditFieldRender,editFieldRendered) <- newRenderHook
-       reactimate (fmap (nextTick . elementFocus) editFieldRendered)
-       textInput <-
-         construct (TextInput (initialContent toDoItem) never)
-       destroyButton <-
-         construct (Button ["\215"])
-       statusCheckbox <-
-         do let toggle =
-                  fmap (\case
-                          Incomplete -> False
-                          Complete -> True)
-                       (setStatus toDoItem)
-            construct (ToDoCheckbox toggle)
-       let switchToEditing =
-             whenE ((Viewing ==) <$> state) click
-           switchToViewing =
-             whenE (fmap (Editing ==) state)
-                   (unions [lostFocus
-                           ,void (filterE (`elem` [13,27]) keyPressed)])
-           state =
-             accumB Viewing
-                    (unions [const Editing <$
-                             switchToEditing
-                            ,const Viewing <$
-                             switchToViewing])
-           showDestroy =
-             $(i [|$(i [|pure Viewing ==
-                         state|]) &&
-                   isHoveringRow|])
-           itemValue =
-             TextInput.value (outputs textInput)
-           selfDestruct =
-             unions [clicked (outputs destroyButton)
-                    ,whenE (fmap isEmptyString itemValue) switchToViewing]
-           self =
-             Instantiation {render =
-                              itemRenderer clickHook <$> render destroyButton <*>
-                              render statusCheckbox <*>
-                              pure (applyHooks hookHoverContainer div_) <*>
-                              showDestroy <*>
-                              state <*>
-                              fmap (applyHooks
-                                      (hookKeyPresses <> hookFocus <>
-                                       hookEditFieldRender))
-                                   (render textInput) <*>
-                              itemValue <*>
-                              (status (outputs self))
-                           ,outputs =
-                              ToDoItemOutput {status =
-                                                accumB Incomplete
-                                                       (unions [fmap (\b _ ->
-                                                                        bool Incomplete Complete b)
-                                                                     (toggled (outputs statusCheckbox))
-                                                               ,const <$>
-                                                                (setStatus toDoItem)])
-                                             ,destroy = selfDestruct
-                                             ,steppedContent =
-                                                stepper (initialContent toDoItem)
-                                                        (itemValue <@
-                                                         switchToViewing)}}
-       return self
+    mdo (hookHoverContainer,isHoveringRow) <- newHoverHook
+        (hookKeyPresses,keyPressed) <- newKeyPressHook
+        (hookFocus,lostFocus) <- newBlurHook
+        (clickHook,click) <- newClickHook
+        (hookEditFieldRender,editFieldRendered) <- newRenderHook
+        callIOStream (nextTick . elementFocus)
+                     editFieldRendered
+        textInput <-
+          construct (TextInput (initialContent toDoItem) mempty)
+        destroyButton <-
+          construct (Button "\215")
+        statusCheckbox <-
+          do let toggle =
+                   fmap (\case
+                           Incomplete -> False
+                           Complete -> True)
+                        (setStatus toDoItem)
+             construct (ToDoCheckbox toggle)
+        let switchToEditing =
+              during click ((Viewing ==) <$> state)
+            switchToViewing =
+              during (merge lostFocus (void (filterEs (`elem` [13,27]) keyPressed)))
+                     (fmap (Editing ==) state)
+        state <-
+          sample (fromChanges
+                    Viewing
+                    (merge (Editing <$ switchToEditing)
+                           (Viewing <$ switchToViewing)))
+        let showDestroy =
+              $(i [|$(i [|pure Viewing == state|]) && isHoveringRow|])
+            itemValue =
+              TextInput.value (outputs textInput)
+        selfDestruct <-
+          sample (next (merge (clicked (outputs destroyButton))
+                              (during switchToViewing (fmap isEmptyString itemValue))))
+        statusFromNow <-
+          sample (foldEs (\a f -> f a)
+                         Incomplete
+                         (merge (fmap (\b _ ->
+                                         bool Incomplete Complete b)
+                                      (toggled (outputs statusCheckbox)))
+                                (const <$> (setStatus toDoItem))))
+        contentFromNow <-
+          sample (fromChanges (initialContent toDoItem)
+                              (snapshots itemValue switchToViewing))
+        let self =
+              Instantiation {render =
+                               embed (itemRenderer clickHook <$>
+                                      observeHTML (render destroyButton) <*>
+                                      observeHTML (render statusCheckbox) <*>
+                                      pure (div_ (applyHooks hookHoverContainer) mempty) <*>
+                                      showDestroy <*>
+                                      state <*>
+                                      observeHTML
+                                        (modifyElement
+                                           (applyHooks
+                                              (hookKeyPresses <> hookFocus <>
+                                               hookEditFieldRender))
+                                           (render textInput)) <*>
+                                      itemValue <*>
+                                      (status (outputs self)))
+                            ,outputs =
+                               ToDoItemOutput {status = statusFromNow
+                                              ,destroy = selfDestruct
+                                              ,steppedContent = contentFromNow}}
+        return self
     where itemRenderer labelClick destroyButton statusCheckbox container showDestroy state textInput inputValue currentStatus =
-            let svgCheckbox =
-                  case state of
-                    Viewing ->
-                      [with svg
-                            (do width_ ?= "40"
-                                height_ ?= "40"
-                                attributes .
-                                  at "viewBox" ?=
-                                  "-10 -18 100 135")
-                            (case currentStatus of
-                               Complete ->
-                                 [checkCircle
-                                 ,with path
-                                       (do attributes .
-                                             at "fill" ?=
-                                             "#5dc2af"
-                                           attributes .
-                                             at "d" ?=
-                                             "M72 25L42 71 27 56l-4 4 20 20 34-52z")
-                                       []]
-                               Incomplete ->
-                                 [checkCircle])]
-                    Editing -> []
+            let
+                -- svgCheckbox =
+                --   case state of
+                --     Viewing ->
+                --       [with svg
+                --             (do width_ ?= "40"
+                --                 height_ ?= "40"
+                --                 attributes . at "viewBox" ?= "-10 -18 100 135")
+                --             (case currentStatus of
+                --                Complete ->
+                --                  [checkCircle
+                --                  ,with path
+                --                        (do attributes . at "fill" ?= "#5dc2af"
+                --                            attributes . at "d" ?=
+                --                              "M72 25L42 71 27 56l-4 4 20 20 34-52z")
+                --                        []]
+                --                Incomplete ->
+                --                  [checkCircle])]
+                --     Editing -> []
                 items =
                   case state of
                     Viewing ->
-                      [with (applyHooks labelClick label_)
-                            (do case currentStatus of
-                                  Incomplete -> labelStyle
-                                  Complete -> completeLabelStyle)
-                            [text inputValue]
+                      [label_ (do applyHooks labelClick
+                                  case currentStatus of
+                                    Incomplete -> labelStyle
+                                    Complete -> completeLabelStyle)
+                              (text inputValue)
                       ,modifyElement
                          (if showDestroy
                              then buttonStyle
@@ -159,8 +154,7 @@ instance Component ToDoItem where
                          --takesFocus) XXX
                          textInput]
             in into container
-                    (modifyElement checkboxStyle statusCheckbox :
-                     items)
+                    (mconcat (modifyElement checkboxStyle statusCheckbox : items))
           inputStyle =
             style .=
             do boxSizing borderBox
@@ -281,67 +275,58 @@ instance Component ToDoItem where
                backgroundImage none
                backgroundColor inherit
                display none
-          checkCircle =
-            with circle
-                 (do attributes .
-                       at "cx" ?=
-                       "50"
-                     attributes .
-                       at "cy" ?=
-                       "50"
-                     attributes .
-                       at "r" ?=
-                       "50"
-                     attributes .
-                       at "fill" ?=
-                       "none"
-                     attributes .
-                       at "stroke" ?=
-                       "#bddad5"
-                     attributes .
-                       at "stroke-width" ?=
-                       "3")
-                 []
-          svgElement x =
-            with (emptyElement (x :: JSString))
-                 (namespace .= "http://www.w3.org/2000/svg")
-                 []
-          svg = svgElement "svg"
-          circle = svgElement "circle"
-          path = svgElement "path"
+          -- checkCircle =
+          --   with circle
+          --        (do attributes . at "cx" ?= "50"
+          --            attributes . at "cy" ?= "50"
+          --            attributes . at "r" ?= "50"
+          --            attributes . at "fill" ?= "none"
+          --            attributes . at "stroke" ?= "#bddad5"
+          --            attributes . at "stroke-width" ?= "3")
+          --        []
+          -- svgElement x =
+          --   term x (namespace .= "http://www.w3.org/2000/svg")
+          -- svg = svgElement "svg"
+          -- circle = svgElement "circle"
+          -- path = svgElement "path"
           isEmptyString x =
             null (fromJSString x :: String)
 
 --------------------------------------------------------------------------------
-data ToDoCheckbox t = ToDoCheckbox { reset :: Event t Bool }
+data ToDoCheckbox =
+  ToDoCheckbox {reset :: EvStream Bool}
 
 instance Component ToDoCheckbox where
-  data Output behavior event
-       ToDoCheckbox = ToDoCheckboxOutput{toggled :: event Bool}
+  data Output ToDoCheckbox = ToDoCheckboxOutput{toggled ::
+                                              EvStream Bool}
   construct c =
     do (clickHook,click) <- newClickHook
-       let toggled_ =
-             accumE False (unions [not <$ click,const <$> reset c])
-           isChecked = stepper False toggled_
+       toggled_ <-
+         sample (scanlEv (\a f -> f a)
+                         False
+                         (merge (not <$ click)
+                                (const <$> reset c)))
+       isChecked <-
+         sample (fromChanges False toggled_)
        return Instantiation {outputs =
                                ToDoCheckboxOutput toggled_
                             ,render =
-                               fmap (\b ->
-                                       with (applyHooks clickHook input_)
-                                            (do checked .= b
-                                                type_ ?= "checkbox")
-                                            [])
-                                    isChecked}
+                               embed (fmap (\b ->
+                                              input_ (do applyHooks clickHook
+                                                         checked .= b
+                                                         type_ ?= "checkbox")
+                                                     mempty)
+                                           isChecked)}
 
 --------------------------------------------------------------------------------
-data Button t = Button [HTML]
+data Button =
+  Button (HTML Behavior)
 
 instance Component Button where
-  data Output behavior event Button = ButtonOutput{clicked ::
-                                                 event ()}
+  data Output Button = ButtonOutput{clicked :: EvStream ()}
   construct (Button buttonLabel) =
     do (clickHook,click) <- newClickHook
        return Instantiation {outputs =
                                ButtonOutput click
                             ,render =
-                               pure (into (applyHooks clickHook button_) buttonLabel)}
+                               button_ (applyHooks clickHook) buttonLabel}
