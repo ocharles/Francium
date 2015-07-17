@@ -4,34 +4,36 @@
 
 module Francium.Components.Form.Input where
 
+import Control.FRPNow hiding (when)
 import Control.Lens ((.=))
-import Control.Monad (void, when)
+import Control.Monad (when)
 import Data.Monoid
+import Data.Foldable (for_)
 import Francium.Component
-import Francium.HTML
+import Francium.HTML hiding (for_)
 import Francium.Hooks
 import GHCJS.DOM.HTMLInputElement
 import GHCJS.Types
-import Reactive.Banana
-import Reactive.Banana.Frameworks
 
-data Input t =
-  Input {inputValue :: Behavior t JSString
-        ,inputDisabled :: Behavior t Bool}
+data Input =
+  Input {inputValue :: Behavior JSString
+        ,inputDisabled :: Behavior Bool}
 
 instance Component Input where
-  data Output behavior event Input = InputOutput{inputChanged ::
-                                               event JSString}
+  data Output Input = InputOutput{inputChanged :: EvStream JSString}
   construct Input{..} =
     do (inputHook,onInput) <- newInputHook
        (renderHook,onRender) <- newRenderHook
-       reactimate
-         (fmap (\(v,el) ->
-                  let htmlInput = castToHTMLInputElement el
-                  in do now <- htmlInputElementGetValue htmlInput
-                        when (now /= v)
-                             (htmlInputElementSetValue htmlInput v))
-               ((,) <$> inputValue <@> onRender))
+       callStream
+         (\els ->
+            (do v <- sample inputValue
+                sync (for_ els
+                           (\el ->
+                              let htmlInput = castToHTMLInputElement el
+                              in do now <- htmlInputElementGetValue htmlInput
+                                    when (not (eqRef (now `asTypeOf` v) v))
+                                         (htmlInputElementSetValue htmlInput v)))))
+         onRender
        return Instantiation {outputs =
                                InputOutput {inputChanged = onInput}
                             ,render =
@@ -47,5 +49,4 @@ instance Component Input where
                                                   (inputHook <> renderHook))
                                             mempty) <$>
                                   inputDisabled <*
-                                  inputValue <*
-                                  (stepper () (void onInput)))}
+                                  inputValue)}

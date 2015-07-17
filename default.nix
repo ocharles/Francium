@@ -1,5 +1,5 @@
 { mkDerivation, base, clay, ghcjs-base, ghcjs-dom, lens, mtl
-, profunctors, reactive-banana, stdenv, transformers
+, profunctors, frpnow, stdenv, transformers
 , virtual-dom
 }:
 mkDerivation {
@@ -7,7 +7,7 @@ mkDerivation {
   version = "0.1";
   src = ./.;
   buildDepends = [
-    base clay ghcjs-base ghcjs-dom lens mtl profunctors reactive-banana
+    base clay ghcjs-base ghcjs-dom lens mtl profunctors frpnow
     transformers virtual-dom
   ];
   license = stdenv.lib.licenses.unfree;

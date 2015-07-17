@@ -9,14 +9,16 @@ library
   build-depends:
     base >= 4 && < 5,
     clay,
+    frpnow,
     ghcjs-base,
     ghcjs-dom,
     lens,
     mtl,
     profunctors,
-    reactive-banana,
-    text, transformers,
-    virtual-dom, stm
+    stm,
+    text,
+    transformers,
+    virtual-dom
   default-language: Haskell2010
   exposed-modules:
     Francium
@@ -32,5 +34,6 @@ library
 
 executable test
   build-depends:
-                base >= 4 && < 5, francium, virtual-dom, ghcjs-base
+                base >= 4 && < 5, francium, virtual-dom, ghcjs-base, frpnow
+  ghcjs-options: -threaded
   main-is: Test.hs

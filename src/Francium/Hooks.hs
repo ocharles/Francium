@@ -5,13 +5,13 @@
 module Francium.Hooks where
 
 import Control.Arrow (second)
+import Control.FRPNow
 import Control.Lens
 import Control.Monad
 import Control.Monad.State (MonadState)
 import Control.Monad.Trans.State.Strict
 import Data.Foldable
 import Data.Function (fix)
-import Data.Traversable (for)
 import Data.Monoid ((<>))
 import GHCJS.DOM.Element (castToElement)
 import GHCJS.DOM.Event (eventGetTarget)
@@ -21,10 +21,8 @@ import GHCJS.DOM.UIEvent
 import GHCJS.Foreign
 import GHCJS.Marshal
 import GHCJS.Types
-import Reactive.Banana
-import Reactive.Banana.Frameworks
-import qualified VirtualDom.Prim as VDom
 import qualified GHCJS.DOM.Event as DOM
+import qualified VirtualDom.Prim as VDom
 
 data Hook =
   Hook {applyHook :: forall m. MonadState VDom.HTMLElement m => m ()}
@@ -36,7 +34,7 @@ instance Monoid Hook where
 applyHooks :: Hook -> State VDom.HTMLElement ()
 applyHooks hook = applyHook hook
 
-on :: Frameworks t => JSString -> Moment t (Hook, Event t DOM.Event)
+on :: JSString -> Now (Hook, EvStream DOM.Event)
 on eventName =
   fmap (\(ev,handler) ->
           (Hook (VDom.on eventName
@@ -44,47 +42,49 @@ on eventName =
                             do t <- fromJSRef e
                                for_ t handler))
           ,ev))
-       newEvent
+       callbackStream
 
-newMouseOverHook :: Frameworks t => Moment t (Hook, Event t ())
+newMouseOverHook :: Now (Hook, EvStream ())
 newMouseOverHook = fmap (second void) (on "mouseover")
 
-newMouseOutHook :: Frameworks t => Moment t (Hook, Event t ())
+newMouseOutHook :: Now (Hook, EvStream ())
 newMouseOutHook = fmap (second void) (on "mouseout")
 
-newBlurHook :: Frameworks t => Moment t (Hook, Event t ())
+newBlurHook :: Now (Hook, EvStream ())
 newBlurHook = fmap (second void) (on "blur")
 
-newClickHook :: Frameworks t => Moment t (Hook, Event t ())
+newClickHook :: Now (Hook, EvStream ())
 newClickHook = fmap (second void) (on "click")
 
-newInputHook :: Frameworks t => Moment t (Hook, Event t JSString)
+newInputHook :: Now (Hook, EvStream JSString)
 newInputHook =
-  do (hook,ev) <- on "input"
-     ev' <-
-       execute (fmap (\t' ->
-                        FrameworksMoment
-                          (liftIO (do t'' <- eventGetTarget t'
-                                      for t''
-                                          (htmlInputElementGetValue .
-                                           castToHTMLInputElement))))
-                     ev)
-     return (hook,filterJust ev')
+  do (hook,evs) <- on "input"
+     (evs',handler) <- callbackStream
+     callIOStream
+       (\t' ->
+          do t'' <- eventGetTarget t'
+             for_ t''
+                  (\target ->
+                     htmlInputElementGetValue (castToHTMLInputElement target) >>=
+                     handler))
+       evs
+     return (hook,evs')
 
-newKeyPressHook :: Frameworks t => Moment t (Hook, Event t Int)
+newKeyPressHook :: Now (Hook, EvStream Int)
 newKeyPressHook =
-  do (hook,ev) <- on "keypress"
-     ev' <-
-       -- A little messy, but we're working with a dom-delegator 'KeyEvent' here.
-       execute
-         (fmap (\t' ->
-                  FrameworksMoment (liftIO (uiEventGetKeyCode (unsafeCastGObject (toGObject t') :: UIEvent))))
-               ev)
-     return (hook,ev')
+  do (hook,evs) <- on "keypress"
+     (evs',handler) <- callbackStream
+     -- A little messy, but we're working with a dom-delegator 'KeyEvent' here.
+     callIOStream
+       (\t' ->
+          uiEventGetKeyCode (unsafeCastGObject (toGObject t') :: UIEvent) >>=
+          handler)
+       evs
+     return (hook,evs')
 
 -- | The render hook emits an event whenever the 'HTML' it is applied to is
 -- rendered to the DOM.
-newRenderHook :: Frameworks t => Moment t (Hook, Event t Element)
+newRenderHook :: Now (Hook,EvStream Element)
 newRenderHook =
   fmap (\(ev,handler) ->
           (Hook     -- We need to make sure we don't clobber any hooks that have
@@ -108,17 +108,16 @@ newRenderHook =
                       maybe (putStrLn "Render hook: Cast to Element failed. Please report this as a bug!")
                             (handler . castToElement)))
           ,ev))
-       newEvent
+       callbackStream
 
-newHoverHook :: Frameworks t => Moment t (Hook, Behavior t Bool)
+newHoverHook :: Now (Hook, Behavior Bool)
 newHoverHook =
   do (mouseOverHook,mouseOver) <- newMouseOverHook
      (mouseOutHook,mouseOut) <- newMouseOutHook
-     let mouseHovering =
-           accumB False
-                  ((const True <$
-                    mouseOver) `union`
-                   (const False <$
-                    mouseOut))
-         hook = mouseOverHook <> mouseOutHook
+     mouseHovering <-
+       sample (fromChanges
+                 False
+                 (merge (True <$ mouseOver)
+                        (False <$ mouseOut)))
+     let hook = mouseOverHook <> mouseOutHook
      return (hook,mouseHovering)

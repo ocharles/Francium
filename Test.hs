@@ -5,22 +5,26 @@ module Main where
 
 import Francium.Component
 import Francium.Components.Form.Input
-import Francium
-import Francium.Hooks
-import VirtualDom
+import Control.FRPNow
 import Data.Char
+import Francium
+import Francium.HTML
+import Francium.Hooks
 import GHCJS.Foreign
+import VirtualDom
 
 main :: IO ()
 main =
-  react (mdo input <- construct (Input v (pure False))
-             (clickHook,onClick) <- newClickHook
-             let v =
-                   fmap (toJSString . show)
-                        (accumB 0 (fmap (const (+ 1)) onClick))
-             let value =
-                   stepper ""
-                           (fmap (toJSString . map toUpper . fromJSString)
-                                 (inputChanged (outputs input)))
-             return (div_ (mconcat [render input
-                                   ,button_ (applyHooks clickHook) "Inc"])))
+  react (do (clickHook,onClick) <- newClickHook
+            v <-
+              fmap (fmap (toJSString . show))
+                   (sample (foldEs (\x _ -> x + 1) 0 onClick))
+            input <-
+              construct (Input v (pure False))
+            value <-
+              sample (fromChanges
+                        ""
+                        (fmap (toJSString . map toUpper . fromJSString)
+                              (inputChanged (outputs input))))
+            return (div_ (mconcat [render input
+                                  ,button_ (applyHooks clickHook) "Inc"])))

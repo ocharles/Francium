@@ -2,24 +2,26 @@
 
 module Francium.Routing (Route, routeComponent, route) where
 
-import Reactive.Banana hiding (Identity)
-import Reactive.Banana.Frameworks
-import VirtualDom
-import Francium.Component
+import Control.Monad
+import Control.FRPNow
 import Data.Functor.Identity
+import Francium.Component
+import VirtualDom
 
-type Route = FrameworksMoment (AnyMoment Behavior (HTML Identity))
+type Route = Now (Behavior (HTML Identity))
 
-routeComponent :: (Component component,TrimOutput component)
-               => (forall t. component t)
-               -> (forall t. Output (Behavior t) (Event t) component -> [Event t Route])
+routeComponent :: (Component component)
+               => component
+               -> (Output component -> [Event Route])
                -> Route
 routeComponent c routing =
-  FrameworksMoment
-    (do component <- construct c
-        switches <-
-          execute (unions (routing (outputs component)))
-        trim (switchB (observeHTML (render component)) switches))
+  do component <- construct c
+     changeOut <-
+       foldM (\l r -> sample (first l r))
+             never
+             (routing (outputs component))
+     switches <- planNow changeOut
+     pure (switch (observeHTML (render component)) switches)
 
-route :: Frameworks t => Route -> Moment t (HTML (Behavior t))
-route (FrameworksMoment m) = fmap embed (m >>= now)
+route :: Route -> Now (HTML Behavior)
+route = fmap embed
