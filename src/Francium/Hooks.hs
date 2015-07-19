@@ -9,7 +9,6 @@ import Control.FRPNow
 import Control.Lens
 import Control.Monad
 import Control.Monad.State (MonadState)
-import Control.Monad.Trans.State.Strict
 import Data.Foldable
 import Data.Function (fix)
 import Data.Monoid ((<>))
@@ -25,14 +24,11 @@ import qualified GHCJS.DOM.Event as DOM
 import qualified VirtualDom.Prim as VDom
 
 data Hook =
-  Hook {applyHook :: forall m. MonadState VDom.HTMLElement m => m ()}
+  Hook {applyHooks :: forall m. MonadState VDom.HTMLElement m => m ()}
 
 instance Monoid Hook where
   mempty = Hook (return ())
   mappend (Hook a) (Hook y) = Hook (a >> y)
-
-applyHooks :: Hook -> State VDom.HTMLElement ()
-applyHooks hook = applyHook hook
 
 on :: JSString -> Now (Hook, EvStream DOM.Event)
 on eventName =

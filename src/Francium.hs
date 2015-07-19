@@ -2,6 +2,7 @@ module Francium where
 
 import Control.FRPNow
 import Control.Monad ((<=<))
+import Control.Monad.Trans.Writer.Strict
 import Data.Foldable
 import GHCJS.Foreign
 import GHCJS.Types
@@ -27,7 +28,7 @@ import VirtualDom
 -- import qualified VirtualDom.Prim as VDom
 
 --------------------------------------------------------------------------------
-react :: Now (HTML Behavior) -> IO ()
+react :: Now (HTML Behavior ()) -> IO ()
 react app =
   do container <- newTopLevelContainer
      _ <- initDomDelegator
@@ -35,8 +36,8 @@ react app =
        (do document <-
              fmap (\x ->
                      case div_ x of
-                       HTML beh ->
-                         fmap (head . toList) beh)
+                       HTML (WriterT beh) ->
+                         fmap (head . toList . snd) beh)
                   app
            initialDocument <- sample document
            sync (nextTick (renderTo container initialDocument))

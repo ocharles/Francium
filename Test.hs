@@ -20,11 +20,11 @@ main =
               fmap (fmap (toJSString . show))
                    (sample (foldEs (\x _ -> x + 1) 0 onClick))
             input <-
-              construct (Input v (pure False))
-            value <-
-              sample (fromChanges
-                        ""
-                        (fmap (toJSString . map toUpper . fromJSString)
-                              (inputChanged (outputs input))))
-            return (div_ (mconcat [render input
-                                  ,button_ (applyHooks clickHook) "Inc"])))
+              newTextInput defaultTextInputConfig {textInputValue = v}
+            -- value <-
+            --   sample (fromChanges
+            --             ""
+            --             (fmap (toJSString . map toUpper . fromJSString)
+            --                   (textInputChanges input)))
+            return (div_ (do renderTextInput input
+                             button_ (applyHooks clickHook) "Inc")))

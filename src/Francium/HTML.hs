@@ -8,8 +8,10 @@ module Francium.HTML
         module VirtualDom.HTML.Attributes, style)
        where
 
+import Control.Arrow
 import Control.Lens hiding (aside, children, coerce, pre)
 import Control.Monad
+import Control.Monad.Trans.Writer.Strict
 import Control.Monad.Trans.State.Strict
 import Data.Text.Lazy (toStrict)
 import GHCJS.Foreign
@@ -35,12 +37,12 @@ style =
                                                        (f (return ())))))))
   where isEmptyStr = (== ("" :: String))
 
-modifyElement :: Functor m => State HTMLElement () -> HTML m -> HTML m
-modifyElement s (HTML m) = HTML (fmap (fmap (over _HTMLElement (execState s))) m)
+modifyElement :: Functor m => State HTMLElement () -> HTML m a -> HTML m a
+modifyElement s (HTML (WriterT m)) = HTML (WriterT (fmap (second (fmap (over _HTMLElement (execState s)))) m))
 
-modifyElementB :: Applicative m => m (State HTMLElement ()) -> HTML m -> HTML m
+modifyElementB :: Applicative m => m (State HTMLElement ()) -> HTML m a -> HTML m a
 modifyElementB s html =
   embed (modifyElement <$> s <*> observeHTML html)
 
-text :: Applicative m => JSString -> HTML m
-text t = HTML (pure (pure (Prim.text t)))
+text :: Applicative m => JSString -> HTML m ()
+text t = HTML (WriterT (pure ((), pure (Prim.text t))))

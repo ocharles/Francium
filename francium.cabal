@@ -23,7 +23,6 @@ library
   exposed-modules:
     Francium
     Francium.CSS
-    Francium.Component
     Francium.Components.Form.Input
     Francium.HTML
     Francium.Hooks

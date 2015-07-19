@@ -8,7 +8,7 @@ import Data.Functor.Identity
 import Francium.Component
 import VirtualDom
 
-type Route = Now (Behavior (HTML Identity))
+type Route = Now (Behavior (HTML Identity ()))
 
 routeComponent :: (Component component)
                => component
@@ -23,5 +23,5 @@ routeComponent c routing =
      switches <- planNow changeOut
      pure (switch (observeHTML (render component)) switches)
 
-route :: Route -> Now (HTML Behavior)
+route :: Route -> Now (HTML Behavior ())
 route = fmap embed
