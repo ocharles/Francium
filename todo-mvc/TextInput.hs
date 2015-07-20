@@ -1,30 +1,35 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecursiveDo #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeFamilies #-}
 
-module TextInput (TextInput(..), TextInput.value) where
+module TextInput where
 
-import Francium.Component
-import Francium.Components.Form.Input
+import Francium.HTML
+import qualified Francium.Components.Form.Input as TI
 import GHCJS.Types
 import Control.FRPNow
 
-data TextInput =
-  TextInput {initialText :: JSString
-            ,updateText :: EvStream (JSString -> JSString)}
+data TextInputConfig =
+  TextInputConfig {textInputInitialText :: JSString
+                  ,textInputUpdates :: EvStream (JSString -> JSString)}
 
-instance Component TextInput where
-  data Output TextInput = TextInputOutput{value :: Behavior JSString}
-  construct ti =
-    mdo input <-
-          construct Input {inputValue = value
-                          ,inputDisabled =
-                             pure False}
-        value <-
-          sample (foldEs (\a f -> f a)
-                         (initialText ti)
-                         (merge (const <$> inputChanged (outputs input))
-                                (updateText ti)))
-        return Instantiation {render = render input
-                             ,outputs =
-                                TextInputOutput value}
+defaultTextInputConfig :: TextInputConfig
+defaultTextInputConfig =
+  TextInputConfig {textInputInitialText = ""
+                  ,textInputUpdates = mempty}
+
+data TextInput =
+  TextInput {textInputValue :: Behavior JSString
+            ,renderTextInput :: HTML Behavior ()}
+
+newTextInput :: TextInputConfig -> Now TextInput
+newTextInput TextInputConfig{..} =
+  mdo input <-
+        TI.newTextInput TI.defaultTextInputConfig {TI.textInputValue = value}
+      value <-
+        sample (foldEs (\a f -> f a)
+                       textInputInitialText
+                       (merge (const <$> TI.textInputChanges input) textInputUpdates))
+      return TextInput {renderTextInput = TI.renderTextInput input
+                       ,textInputValue = value}

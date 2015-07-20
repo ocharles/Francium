@@ -18,7 +18,6 @@ import StateFilter
 import ToDoList
 import ToggleAll
 import Control.FRPNow
-import Francium.Component
 
 -- | 'app' defines our TodoMVC clone's top-level definition. To Francium, web
 -- applications are simply time-varying HTML documents, and we can see this from
@@ -27,30 +26,18 @@ import Francium.Component
 --
 -- Inside our 'app' function, we simply build all the necessary components for
 -- the TodoMVC application, and wire them together appropriately.
-app :: Now (HTML Behavior)
+app :: Now (HTML Behavior ())
 app =
   mdo
       -- The newItemAdder component allows users to append new items to their
       -- to-do list.
-      newItemAdder <- construct NewItemAdder
+      newItemAdder <- newNewItemAdder
       -- The state filter component allows users to show all to-do items, or
       -- only complete/incomplete items.
-      stateFilter <- construct StateFilter
+      stateFilter <- newStateFilter
       -- The clearCompleted component provides a button that will remove all
       -- completed to-do items, leaving just incomplete items.
-      clearCompleted <- construct ClearCompleted
-      -- The openItemCount component simply displays the count of incomplete
-      -- todo items.
-      --
-      -- Here we see our first component that requires external inputs.
-      -- Specifically, the openItemCount component needs to know which to-do
-      -- items are present. To provide it with this information, we simply
-      -- proxy this data through from the contents of the toDoList component,
-      -- which we construct next. (Note that we can refer to declarations
-      -- created later by using @mdo@ syntax).
-      openItemCount <-
-        construct OpenItemCount {OpenItemCount.items =
-                                   allItems (outputs toDoList)}
+      clearCompleted <- newClearCompleted
       -- The toggle all component is a checkbox that updates the status of all
       -- to-do items. If any are incomplete, then toggling it will mark all
       -- items as complete. If all items are complete, toggling it will mark all
@@ -62,51 +49,51 @@ app =
       -- of the ToDoList component, which we construct next. (Note that we can
       -- refer to declarations created later by using @mdo@ syntax).
       toggleAll <-
-        construct (ToggleAll {ToggleAll.items =
-                                allItems (outputs toDoList)})
+        newToggleAll ToggleAllConfig {ToggleAll.toggleAllItems = toDoListItems toDoList}
       -- Finally, we construct the toDoList component, which renders all known
       -- to-do items, along with managing the state and persistance of the to-do
       -- list.
       --
       -- This component has many external inputs:
       toDoList <-
-        construct (ToDoList {ToDoList.addItem =
-                               -- An event to add a new item to the to-do list.
-                               NewItemAdder.addItem (outputs newItemAdder)
-                            ,ToDoList.clearCompleted =
-                               -- An event to clear all completed to-do items by
-                               -- removing them from the list.
-                               ClearCompleted.clearCompleted (outputs clearCompleted)
-                            ,statusFilter =
-                               -- A function (that changes over time) indicating
-                               -- which to-do items the user wishes to view.
-                               StateFilter.stateFilterF (outputs stateFilter)
-                            ,setStatuses =
-                               -- An event that updates the status of all to-do
-                               -- items.
-                               toggleUpdate (outputs toggleAll)})
+        newToDoList
+          ToDoListConfig {ToDoList.toDoListAddItem =
+                                                     -- An event to add a new item to the to-do list.
+                                                     NewItemAdder.newItemAdderAdditions newItemAdder
+                         ,ToDoList.toDoListClearCompleted =
+                                                            -- An event to clear all completed to-do items by
+                                                            -- removing them from the list.
+                                                            ClearCompleted.clearCompletedUpdates clearCompleted
+                         ,toDoListStatusFilter =
+                                                 -- A function (that changes over time) indicating
+                                                 -- which to-do items the user wishes to view.
+                                                 StateFilter.stateFilterF stateFilter
+                         ,toDoListSetStatuses =
+                                                -- An event that updates the status of all to-do
+                                                -- items.
+                                                toggleAllUpdates toggleAll}
       -- Now that we have constructed all the necessary components, the
       -- remaining step is to lay them out accordingly. To do so, we use
       -- applicative syntax to snapshot the renderings of each child component
       -- at the same point in time, and then lay this out in 'appView'.
       return
         (embed $(i [|appView $(i [|AppView {avNewItemAdder =
-                                              observeHTML (render newItemAdder)
+                                              observeHTML (renderNewItemAdder newItemAdder)
                                            ,avToDoList =
-                                              observeHTML (render toDoList)
+                                              observeHTML (renderToDoList toDoList)
                                            ,avHasItems =
                                               -- $(i [|(not . null) (allItems (outputs toDoList))|])
                                               fmap (not . null)
-                                                   (allItems (outputs toDoList))
+                                                   (toDoListItems toDoList)
                                            ,avToDoSummary =
                                               $(i [|ToDoSummary {tdsOpenItemCounter =
-                                                                   observeHTML (render openItemCount)
+                                                                   observeHTML (renderOpenItemCounter (toDoListItems toDoList))
                                                                 ,tdsStateFilter =
-                                                                   observeHTML (render stateFilter)
+                                                                   observeHTML (renderStateFilter stateFilter)
                                                                 ,tdsClearCompleted =
-                                                                   observeHTML (render clearCompleted)}|])
+                                                                   observeHTML (renderClearCompleted clearCompleted)}|])
                                            ,avToggleAll =
-                                              observeHTML (render toggleAll)}|])|]))
+                                              observeHTML (renderToggleAll toggleAll)}|])|]))
 
 -- | Now that we have declared our application's event network, the only
 -- remaining step is to execute it. To do that, we simply apply 'react' to
@@ -116,18 +103,18 @@ main :: IO ()
 main = react app
 
 data AppView m =
-  AppView {avNewItemAdder :: HTML m
-          ,avToDoList :: HTML m
+  AppView {avNewItemAdder :: HTML m ()
+          ,avToDoList :: HTML m ()
           ,avHasItems :: Bool
           ,avToDoSummary :: ToDoSummary m
-          ,avToggleAll :: HTML m}
+          ,avToggleAll :: HTML m ()}
 
 -- | The 'appView' function simply stiches together all renderings of child
 -- components into the main HTML of the document. Francium encourages the use
 -- of inline styles, but that requires discipline in making small functions.
 -- Here we see that most of the elements that we're adding content to are
 -- abstract HTML values.
-appView :: Applicative m => AppView m -> HTML m
+appView :: Monad m => AppView m -> HTML m ()
 appView AppView{..} =
   into mainContainer
        (mconcat [into rootSection
@@ -141,7 +128,7 @@ appView AppView{..} =
 
 -- | The application itself is rendered into the <body> of the document. Here
 -- we style the body accordingly.
-mainContainer :: Applicative m => HTML m
+mainContainer :: Monad m => HTML m ()
 mainContainer =
   body_
        (style .=
@@ -163,7 +150,7 @@ mainContainer =
 
 -- | The root section contains the application, and gives the distinctive
 -- todo-mvc container look.
-rootSection :: Applicative m => HTML m
+rootSection :: Monad m => HTML m ()
 rootSection =
   section_
        (style .=
@@ -179,7 +166,7 @@ rootSection =
 
 -- | The to-do section contains the to-do list, and also overlaps the
 -- "complete all" checkbox.
-toDoSection :: Applicative m => HTML m -> HTML m
+toDoSection :: Monad m => HTML m () -> HTML m ()
 toDoSection =
   section_
        (style .=
@@ -191,7 +178,7 @@ toDoSection =
 
 -- | The page title is a header that shows the user they are viewing the todo-mvc
 -- application.
-pageTitle :: Applicative m => HTML m
+pageTitle :: Monad m => HTML m ()
 pageTitle =
   h1_
        (style .=
@@ -208,11 +195,11 @@ pageTitle =
 -- allowing the user to either filter the to-do list, see how many incomplete
 -- items they have, and to clear all completed items.
 data ToDoSummary m =
-  ToDoSummary {tdsOpenItemCounter :: HTML m
-              ,tdsStateFilter :: HTML m
-              ,tdsClearCompleted :: HTML m}
+  ToDoSummary {tdsOpenItemCounter :: HTML m ()
+              ,tdsStateFilter :: HTML m ()
+              ,tdsClearCompleted :: HTML m ()}
 
-toDoSummary :: Applicative m => ToDoSummary m -> HTML m
+toDoSummary :: Monad m => ToDoSummary m -> HTML m ()
 toDoSummary ToDoSummary{..} =
   footer_ (style .=
            do borderTopColor (rgb 230 230 230)
@@ -257,7 +244,7 @@ toDoSummary ToDoSummary{..} =
                                 backgroundImage none)
                             mempty])
 
-pageFooter :: Applicative m => HTML m
+pageFooter :: Monad m => HTML m ()
 pageFooter =
   footer_ (style .=
            do textAlign (alignSide sideCenter)
